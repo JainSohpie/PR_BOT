@@ -1,4 +1,5 @@
 import os
+import threading
 from flask import Flask, request, jsonify
 import requests
 
@@ -15,7 +16,7 @@ def send_message(text):
             "Content-Type": "application/json"
         },
         json={"conversation_id": CONV_ID, "text": text},
-        timeout=3   # ← 추가: 3초 안에 응답 없으면 포기
+        timeout=5
     )
 
 @app.route("/webhook", methods=["GET", "POST"])
@@ -23,7 +24,17 @@ def webhook():
     if request.method == "GET":
         return jsonify({"ok": True})
     
-    # ⭐ 카카오워크가 원하는 형식으로 응답
-    return jsonify({
-        "text": "처리 완료"
-    })
+    body = request.get_json(silent=True) or {}
+    
+    # 버튼 클릭 감지
+    if body.get("action_name") == "summarize" or body.get("value") == "summarize":
+        # 답장은 백그라운드로 (카카오워크 타임아웃 방지)
+        threading.Thread(
+            target=send_message,
+            args=("✅ 버튼 클릭 확인! 연결 성공!",)
+        ).start()
+    
+    return jsonify({"ok": True})
+
+if __name__ == "__main__":
+    app.run()
