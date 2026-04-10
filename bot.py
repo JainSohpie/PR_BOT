@@ -23,5 +23,7 @@ def webhook():
     if request.method == "GET":
         return jsonify({"ok": True})
     
-    # ⭐ 일단 아무것도 안 하고 즉시 응답만 돌려주기
-    return jsonify({"ok": True})
+    # ⭐ 카카오워크가 원하는 형식으로 응답
+    return jsonify({
+        "text": "처리 완료"
+    })
