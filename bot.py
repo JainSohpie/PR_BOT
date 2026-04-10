@@ -8,6 +8,8 @@ BOT_TOKEN = os.environ.get("BOT_TOKEN")
 CLAUDE_KEY = os.environ.get("CLAUDE_KEY")
 CONV_ID = os.environ.get("CONV_ID", "962674071608677")
 
+buffers = {}
+
 def ask_claude(text):
     res = requests.post(
         "https://api.anthropic.com/v1/messages",
@@ -35,6 +37,34 @@ def send_message(text):
         json={"conversation_id": CONV_ID, "text": text}
     )
 
+def send_button_card():
+    requests.post(
+        "https://api.kakaowork.com/v1/messages.send",
+        headers={
+            "Authorization": f"Bearer {BOT_TOKEN}",
+            "Content-Type": "application/json"
+        },
+        json={
+            "conversation_id": CONV_ID,
+            "text": "이슈를 정리할까요?",
+            "blocks": [
+                {
+                    "type": "text",
+                    "text": "📋 *이슈봇*\n대화 내용을 분석해서 이슈를 정리해드립니다.",
+                    "markdown": True
+                },
+                {
+                    "type": "button",
+                    "text": "이슈 정리하기",
+                    "style": "primary",
+                    "action_type": "submit_action",
+                    "action_name": "summarize",
+                    "value": "summarize"
+                }
+            ]
+        }
+    )
+
 @app.route("/webhook", methods=["GET", "POST"])
 def webhook():
     if request.method == "GET":
@@ -42,42 +72,34 @@ def webhook():
 
     body = request.get_json(silent=True) or {}
 
-    # Request URL - Modal 팝업 응답
-    if body.get("action_name") == "이슈 입력하기" or body.get("value") == "open_modal":
-        return jsonify({
-            "view": {
-                "title": "이슈 입력",
-                "accept": "분석하기",
-                "decline": "취소",
-                "blocks": [
-                    {
-                        "type": "label",
-                        "text": "카카오톡/워크 대화 내용을 붙여넣으세요",
-                        "markdown": False
-                    },
-                    {
-                        "type": "input",
-                        "block_id": "issue_text",
-                        "label": "대화 내용",
-                        "placeholder": "대화 내용을 여기에 붙여넣으세요...",
-                        "required": True
-                    }
-                ]
-            }
-        })
-
-    # Callback URL - Modal 제출 처리
-    if "actions" in body or "submission" in body:
-        submission = body.get("submission", body.get("actions", {}))
-        issue_text = submission.get("issue_text", "")
-
-        if issue_text:
-            result = ask_claude(issue_text)
+    # Callback URL - 버튼 클릭 처리
+    if body.get("action_name") == "summarize" or body.get("value") == "summarize":
+        if buffers.get(CONV_ID):
+            conversation = "\n".join(buffers[CONV_ID])
+            result = ask_claude(conversation)
             send_message(f"📋 이슈 정리 결과\n\n{result}")
-
+            buffers[CONV_ID] = []
+        else:
+            send_message("아직 쌓인 대화가 없어요. 먼저 대화를 나눠주세요!")
         return jsonify({"ok": True})
 
+    # 일반 메시지 처리
+    if body.get("type") == "message":
+        msg = body.get("message", {})
+        text = msg.get("text", "")
+        sender = msg.get("sender", {}).get("name", "누군가")
+
+        if CONV_ID not in buffers:
+            buffers[CONV_ID] = []
+
+        buffers[CONV_ID].append(f"{sender}: {text}")
+
     return jsonify({"ok": True})
+
+@app.route("/send_card", methods=["GET"])
+def send_card():
+    send_button_card()
+    return jsonify({"ok": True, "message": "버튼 카드 전송 완료"})
 
 if __name__ == "__main__":
     app.run()
