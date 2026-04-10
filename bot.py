@@ -38,8 +38,11 @@ def reply(text):
         json={"conversation_id": CONV_ID, "text": text}
     )
 
-@app.route("/webhook", methods=["POST"])
+@app.route("/webhook", methods=["GET", "POST"])
 def webhook():
+    if request.method == "GET":
+        return jsonify({"ok": True})
+
     body = request.get_json(silent=True) or {}
 
     if "challenge" in body:
