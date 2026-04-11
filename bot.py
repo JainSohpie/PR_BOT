@@ -169,72 +169,51 @@ def analyze():
 
 
 # ============================================================
-# SharePoint 자동 입력
+# SharePoint 자동 입력 (Power Automate 경유)
 # ============================================================
 @app.route("/save-to-sharepoint", methods=["POST"])
 def save_to_sharepoint():
-    if not all([MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET]):
+    pa_url = os.environ.get("POWER_AUTOMATE_URL")
+    if not pa_url:
         return jsonify({
-            "error": "SharePoint 연동이 아직 설정되지 않았습니다. MS_TENANT_ID, MS_CLIENT_ID, MS_CLIENT_SECRET 환경변수를 추가해주세요."
+            "error": "POWER_AUTOMATE_URL 환경변수가 설정되지 않았습니다."
         }), 400
 
     data = request.get_json()
     items = data.get("items", [])
 
-    try:
-        token_url = f"https://login.microsoftonline.com/{MS_TENANT_ID}/oauth2/v2.0/token"
-        token_resp = http_requests.post(token_url, data={
-            "grant_type": "client_credentials",
-            "client_id": MS_CLIENT_ID,
-            "client_secret": MS_CLIENT_SECRET,
-            "scope": "https://graph.microsoft.com/.default"
-        }, timeout=10)
-        access_token = token_resp.json().get("access_token")
+    saved_count = 0
+    errors = []
 
-        if not access_token:
-            return jsonify({"error": "Azure AD 인증 실패"}), 500
+    for item in items:
+        try:
+            resp = http_requests.post(
+                pa_url,
+                json={
+                    "report_date": item.get("report_date", ""),
+                    "media": item.get("media", ""),
+                    "reporter": item.get("reporter", ""),
+                    "title": item.get("title", ""),
+                    "issue": item.get("issue", ""),
+                    "action_type": item.get("action_type", ""),
+                    "action_detail": item.get("action_detail", ""),
+                    "is_non_coverage": item.get("is_non_coverage", False)
+                },
+                timeout=30
+            )
+            if resp.status_code in [200, 201, 202]:
+                saved_count += 1
+            else:
+                errors.append(f"{item.get('media','')}: {resp.status_code}")
+        except Exception as e:
+            errors.append(f"{item.get('media','')}: {str(e)}")
 
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type": "application/json"
-        }
-
-        saved_count = 0
-        errors = []
-
-        for item in items:
-            try:
-                graph_url = f"https://graph.microsoft.com/v1.0/sites/{SP_SITE_ID}/drive/items/{SP_DRIVE_ID}/workbook/tables/Table1/rows/add"
-                row_data = {
-                    "values": [[
-                        item.get("report_date", ""),
-                        item.get("action_date", ""),
-                        item.get("media", ""),
-                        item.get("reporter", ""),
-                        item.get("title", ""),
-                        item.get("issue", ""),
-                        item.get("action_type", ""),
-                        item.get("action_detail", ""),
-                        "Y" if item.get("is_non_coverage") else "N"
-                    ]]
-                }
-                resp = http_requests.post(graph_url, headers=headers, json=row_data, timeout=10)
-                if resp.status_code in [200, 201]:
-                    saved_count += 1
-                else:
-                    errors.append(f"{item.get('media','')}: {resp.status_code}")
-            except Exception as e:
-                errors.append(f"{item.get('media','')}: {str(e)}")
-
-        return jsonify({
-            "success": True,
-            "saved": saved_count,
-            "total": len(items),
-            "errors": errors
-        })
-
-    except Exception as e:
-        return jsonify({"error": f"SharePoint 저장 중 오류: {str(e)}"}), 500
+    return jsonify({
+        "success": True,
+        "saved": saved_count,
+        "total": len(items),
+        "errors": errors
+    })
 
 
 # ============================================================
