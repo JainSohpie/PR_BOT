@@ -1,0 +1,387 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI 에이전트 '홍사원'</title>
+<link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF8;
+  --card: #FFFFFF;
+  --text: #18181B;
+  --sub: #71717A;
+  --muted: #A1A1AA;
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --success: #059669;
+  --success-bg: #ECFDF5;
+  --warning-bg: #FFFBEB;
+  --border: #E4E4E7;
+  --input-bg: #FAFAFA;
+  --font: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+.header {
+  background: var(--card); border-bottom: 1px solid var(--border);
+  padding: 16px 24px; display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo {
+  width: 32px; height: 32px; background: var(--accent); border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: white; font-weight: 700; font-size: 14px;
+}
+.header h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+.header-status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+
+.main {
+  max-width: 1200px; margin: 0 auto; padding: 32px 24px;
+  display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; align-items: start;
+}
+@media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.panel-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.panel-title { font-size: 14px; font-weight: 600; }
+.panel-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 100px; background: #EFF6FF; color: var(--accent); }
+.panel-body { padding: 20px; }
+
+.date-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.date-field { flex: 1; }
+.date-label { font-size: 12px; font-weight: 600; color: var(--sub); display: block; margin-bottom: 4px; }
+.date-input {
+  width: 100%; border: 1px solid var(--border); border-radius: 8px;
+  padding: 10px 14px; font-family: var(--font); font-size: 14px;
+  background: var(--input-bg); color: var(--text); transition: border-color 0.2s;
+}
+.date-input:focus { outline: none; border-color: var(--accent); background: var(--card); }
+
+.file-upload {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 14px; border: 2px dashed var(--border); border-radius: 8px;
+  cursor: pointer; color: var(--sub); font-size: 13px; transition: all 0.15s;
+  margin-bottom: 12px;
+}
+.file-upload:hover { border-color: var(--accent); color: var(--accent); }
+.file-upload input { display: none; }
+
+.input-area {
+  width: 100%; min-height: 240px; border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; font-family: var(--font); font-size: 14px; line-height: 1.7;
+  resize: vertical; background: var(--input-bg); color: var(--text); transition: border-color 0.2s;
+}
+.input-area:focus { outline: none; border-color: var(--accent); background: var(--card); }
+.input-area::placeholder { color: var(--muted); }
+.input-hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 10px 20px; border-radius: 8px; font-family: var(--font);
+  font-size: 14px; font-weight: 600; cursor: pointer; border: none;
+  transition: all 0.15s; width: 100%; margin-top: 12px;
+}
+.btn-primary { background: var(--accent); color: white; }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled { background: #93C5FD; cursor: not-allowed; }
+.btn-success { background: var(--success); color: white; }
+.btn-success:hover { background: #047857; }
+.btn-success:disabled { background: #6EE7B7; cursor: not-allowed; }
+
+.spinner {
+  width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.result-summary { display: flex; gap: 12px; margin-bottom: 16px; }
+.stat-card { flex: 1; padding: 12px 16px; border-radius: 8px; text-align: center; }
+.stat-card.blue { background: #EFF6FF; }
+.stat-card.green { background: var(--success-bg); }
+.stat-card.orange { background: var(--warning-bg); }
+.stat-num { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+.stat-card.blue .stat-num { color: var(--accent); }
+.stat-card.green .stat-num { color: var(--success); }
+.stat-card.orange .stat-num { color: #D97706; }
+.stat-label { font-size: 11px; color: var(--sub); margin-top: 2px; }
+
+.table-wrap { max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.result-table th {
+  text-align: left; padding: 10px 10px; background: var(--bg);
+  font-weight: 600; font-size: 11px; color: var(--sub);
+  letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+  position: sticky; top: 0; white-space: nowrap;
+}
+.result-table td { padding: 10px 10px; border-bottom: 1px solid #F4F4F5; vertical-align: top; }
+.result-table tr:hover td { background: #FAFAFA; }
+
+.tag {
+  display: inline-block; padding: 2px 8px; border-radius: 4px;
+  font-size: 11px; font-weight: 600; white-space: nowrap;
+}
+.tag-blue { background: #DBEAFE; color: #1E40AF; }
+.tag-green { background: #D1FAE5; color: #065F46; }
+.tag-orange { background: #FEF3C7; color: #92400E; }
+.tag-red { background: #FEE2E2; color: #991B1B; }
+.tag-gray { background: #F4F4F5; color: #52525B; }
+
+.check-cell { width: 36px; text-align: center; }
+.check-cell input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+.toast {
+  position: fixed; bottom: 24px; right: 24px; padding: 14px 20px;
+  border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 1000;
+  animation: slideUp 0.3s ease-out; display: none;
+}
+.toast.success { background: #065F46; color: white; }
+.toast.error { background: #991B1B; color: white; }
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
+.empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
+.empty-state p { font-size: 14px; line-height: 1.6; }
+.sample-btn {
+  display: inline-block; margin-top: 8px; font-size: 12px; color: var(--accent);
+  cursor: pointer; border: none; background: none; font-family: var(--font);
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.sample-btn:hover { color: var(--accent-hover); }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">홍</div>
+    <h1>AI 에이전트 '홍사원' — 부정보도 조치현황 자동화</h1>
+  </div>
+  <div class="header-status">
+    <span class="status-dot"></span>
+    Agent 연결됨
+  </div>
+</div>
+
+<div class="main">
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">카톡 대화 입력</span>
+      <span class="panel-badge">Phase 1</span>
+    </div>
+    <div class="panel-body">
+      <div class="date-row">
+        <div class="date-field">
+          <label class="date-label">시작일 (목)</label>
+          <input type="date" id="startDate" class="date-input" value="{{ default_start }}">
+        </div>
+        <div class="date-field">
+          <label class="date-label">종료일 (수)</label>
+          <input type="date" id="endDate" class="date-input" value="{{ default_end }}">
+        </div>
+      </div>
+      <label class="file-upload" id="fileArea">
+        <span style="font-size:18px">&#x1F4C4;</span>
+        <span id="fileLabel">카톡 대화 내보내기 txt 파일 업로드</span>
+        <input type="file" id="fileUpload" accept=".txt" onchange="handleFile(this)">
+      </label>
+      <textarea id="chatInput" class="input-area" placeholder="위에서 txt 파일을 업로드하거나, 여기에 직접 붙여넣으세요.
+
+(카톡 PC → 업무방 → ≡ → 대화 내보내기)
+
+날짜 구분선이 포함된 전체 txt를 붙여넣으면,
+위에서 선택한 기간(목~수)에 해당하는 대화만 자동으로 추출합니다."></textarea>
+      <div class="input-hint">
+        txt 파일 업로드 또는 직접 붙여넣기. 선택한 기간만 자동 필터링됩니다.
+        <button class="sample-btn" onclick="loadSample()">샘플 데이터 넣기</button>
+      </div>
+      <button id="analyzeBtn" class="btn btn-primary" onclick="analyze()">
+        AI 분석 시작
+      </button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">분석 결과</span>
+      <span id="resultBadge" class="panel-badge" style="display:none">0건</span>
+    </div>
+    <div class="panel-body">
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">&#x1f4cb;</div>
+        <p>왼쪽에 카톡 대화를 붙여넣고<br><strong>AI 분석 시작</strong>을 눌러주세요</p>
+      </div>
+      <div id="resultArea" style="display:none">
+        <div id="summaryCards" class="result-summary"></div>
+        <div class="table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th class="check-cell"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+                <th>보도일</th>
+                <th>조치일</th>
+                <th>매체/기자</th>
+                <th>기사제목</th>
+                <th>이슈요약</th>
+                <th>조치유형</th>
+                <th>조치내용</th>
+              </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+          </table>
+        </div>
+        <button id="saveBtn" class="btn btn-success" onclick="saveToSharePoint()" style="margin-top:16px">
+          SharePoint에 저장
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+let currentItems = [];
+const tagColors = {
+  '비보도조치': 'tag-red',
+  '제목 및 내용수정': 'tag-blue',
+  '회사명삭제': 'tag-orange',
+  '회사입장반영': 'tag-green',
+  '기타': 'tag-gray'
+};
+
+function handleFile(input) {
+  const file = input.files[0];
+  if (!file) return;
+  document.getElementById('fileLabel').textContent = file.name + ' (불러옴)';
+  document.getElementById('fileArea').style.borderColor = 'var(--success)';
+  document.getElementById('fileArea').style.color = 'var(--success)';
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    document.getElementById('chatInput').value = e.target.result;
+    showToast(file.name + ' 불러오기 완료', 'success');
+  };
+  reader.readAsText(file, 'UTF-8');
+}
+
+function loadSample() {
+  document.getElementById('chatInput').value = `--------------- 2026년 4월 3일 목요일 ---------------
+[오전 9:23] 팀장: 한국경제 김민수 기자 "포스코이앤씨 하자 분쟁 확산" 기사 나왔어. 제목에서 회사명 빼달라고 요청해
+[오전 9:45] 홍사원: 확인했습니다. 기자한테 연락드렸습니다
+[오전 10:30] 홍사원: 제목 수정 완료됐습니다. "포스코이앤씨" → "일부 건설사"로 변경
+
+[오후 2:15] 팀장: 머니투데이 박지영 기자한테서 빗물펌프장 안전사고 취재 문의 왔어
+[오후 3:00] 홍사원: 통화해서 상황 설명드렸고, 보도 안 하기로 했습니다. 비보도 조치 완료
+
+--------------- 2026년 4월 4일 금요일 ---------------
+[오전 8:50] 팀장: 매일경제 이승호 기자 "분양가 상승 논란" 기사 확인해봐. 우리 입장이 빠져있어
+[오전 9:20] 홍사원: 확인했습니다. 회사 입장 반영 요청드리겠습니다
+[오후 1:15] 홍사원: 기사 하단에 회사 입장 추가 완료됐습니다
+
+[오후 4:30] 팀장: 뉴시스 장현우 기자 하도급 관련 취재 문의 들어옴
+[오후 5:00] 홍사원: 사실관계 설명드렸고 보도 보류하기로 했습니다
+
+--------------- 2026년 4월 7일 월요일 ---------------
+[오전 10:00] 팀장: 서울경제 최유진 기자 "현장 안전점검 미흡" 기사 떴어. 내용 중에 사실과 다른 부분 수정 요청해
+[오전 11:30] 홍사원: 기자 통화 완료. 본문 내용 일부 수정 반영됐습니다`;
+}
+
+async function analyze() {
+  const text = document.getElementById('chatInput').value;
+  if (!text.trim()) { showToast('카톡 대화를 입력해주세요', 'error'); return; }
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 홍사원이 분석 중...';
+  try {
+    const resp = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        start_date: document.getElementById('startDate').value,
+        end_date: document.getElementById('endDate').value
+      })
+    });
+    const data = await resp.json();
+    if (data.error) { showToast(data.error, 'error'); return; }
+    currentItems = data.items || [];
+    renderResults(data);
+  } catch (e) {
+    showToast('서버 연결 오류: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'AI 분석 시작';
+  }
+}
+
+function renderResults(data) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultArea').style.display = 'block';
+  const badge = document.getElementById('resultBadge');
+  badge.style.display = 'inline-block';
+  badge.textContent = data.count + '건';
+  const nonCov = data.non_coverage_count || 0;
+  const cov = data.count - nonCov;
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="stat-card blue"><div class="stat-num">${data.count}</div><div class="stat-label">총 추출 건수</div></div>
+    <div class="stat-card green"><div class="stat-num">${cov}</div><div class="stat-label">부정보도 조치</div></div>
+    <div class="stat-card orange"><div class="stat-num">${nonCov}</div><div class="stat-label">비보도 조치</div></div>`;
+  const tbody = document.getElementById('resultBody');
+  tbody.innerHTML = data.items.map((item, i) => `
+    <tr>
+      <td class="check-cell"><input type="checkbox" class="item-check" data-idx="${i}" checked></td>
+      <td style="white-space:nowrap;font-size:12px">${item.report_date || '-'}</td>
+      <td style="white-space:nowrap;font-size:12px">${item.action_date || '-'}</td>
+      <td><strong>${item.media || '-'}</strong><br><span style="font-size:11px;color:var(--muted)">${item.reporter || ''}</span></td>
+      <td style="max-width:150px;font-size:12px">${item.title || '-'}</td>
+      <td style="max-width:160px;font-size:12px;color:var(--sub)">${item.issue || '-'}</td>
+      <td><span class="tag ${tagColors[item.action_type] || 'tag-gray'}">${item.action_type || '기타'}</span></td>
+      <td style="max-width:140px;font-size:12px;color:var(--sub)">${item.action_detail || '-'}</td>
+    </tr>`).join('');
+  showToast(`${data.count}건 추출 완료`, 'success');
+}
+
+function toggleAll(el) { document.querySelectorAll('.item-check').forEach(cb => cb.checked = el.checked); }
+
+async function saveToSharePoint() {
+  const selected = [...document.querySelectorAll('.item-check:checked')].map(cb => currentItems[parseInt(cb.dataset.idx)]);
+  if (selected.length === 0) { showToast('저장할 항목을 선택해주세요', 'error'); return; }
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 저장 중...';
+  try {
+    const resp = await fetch('/save-to-sharepoint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: selected })
+    });
+    const data = await resp.json();
+    if (data.error) { showToast(data.error, 'error'); }
+    else { showToast(`${data.saved}/${data.total}건 SharePoint 저장 완료`, 'success'); }
+  } catch (e) {
+    showToast('저장 중 오류: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'SharePoint에 저장';
+  }
+}
+
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + type;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+</script>
+</body>
+</html>
