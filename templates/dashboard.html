@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>넌 대화만 해, 정리는 내가 할게</title>
+<link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+:root {
+  --bg: #FAFAF8;
+  --card: #FFFFFF;
+  --text: #18181B;
+  --sub: #71717A;
+  --muted: #A1A1AA;
+  --accent: #2563EB;
+  --accent-hover: #1D4ED8;
+  --success: #059669;
+  --success-bg: #ECFDF5;
+  --danger: #DC2626;
+  --danger-bg: #FEF2F2;
+  --warning-bg: #FFFBEB;
+  --border: #E4E4E7;
+  --input-bg: #FAFAFA;
+  --font: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* Header */
+.header {
+  background: var(--card);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.logo {
+  width: 32px;
+  height: 32px;
+  background: var(--accent);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.header h1 {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.3px;
+}
+
+.header-status {
+  font-size: 12px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+}
+
+/* Main layout */
+.main {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 768px) {
+  .main { grid-template-columns: 1fr; }
+}
+
+/* Panel */
+.panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.panel-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.panel-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.panel-badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 100px;
+  background: #EFF6FF;
+  color: var(--accent);
+}
+
+.panel-body { padding: 20px; }
+
+/* Textarea */
+.input-area {
+  width: 100%;
+  min-height: 320px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 16px;
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.7;
+  resize: vertical;
+  background: var(--input-bg);
+  color: var(--text);
+  transition: border-color 0.2s;
+}
+
+.input-area:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--card);
+}
+
+.input-area::placeholder { color: var(--muted); }
+
+.input-hint {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* Button */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+}
+
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-primary:disabled {
+  background: #93C5FD;
+  cursor: not-allowed;
+}
+
+.btn-success {
+  background: var(--success);
+  color: white;
+}
+
+.btn-success:hover { background: #047857; }
+.btn-success:disabled {
+  background: #6EE7B7;
+  cursor: not-allowed;
+}
+
+.btn-outline {
+  background: var(--card);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+
+.btn-outline:hover { background: var(--bg); }
+
+/* Spinner */
+.spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Results */
+.result-summary {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.stat-card {
+  flex: 1;
+  padding: 12px 16px;
+  border-radius: 8px;
+  text-align: center;
+}
+
+.stat-card.blue { background: #EFF6FF; }
+.stat-card.green { background: var(--success-bg); }
+.stat-card.orange { background: var(--warning-bg); }
+
+.stat-num {
+  font-size: 24px;
+  font-weight: 800;
+  letter-spacing: -0.5px;
+}
+
+.stat-card.blue .stat-num { color: var(--accent); }
+.stat-card.green .stat-num { color: var(--success); }
+.stat-card.orange .stat-num { color: #D97706; }
+
+.stat-label {
+  font-size: 11px;
+  color: var(--sub);
+  margin-top: 2px;
+}
+
+/* Table */
+.result-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.result-table th {
+  text-align: left;
+  padding: 10px 12px;
+  background: var(--bg);
+  font-weight: 600;
+  font-size: 11px;
+  color: var(--sub);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+}
+
+.result-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid #F4F4F5;
+  vertical-align: top;
+}
+
+.result-table tr:hover td { background: #FAFAFA; }
+
+.tag {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.tag-blue { background: #DBEAFE; color: #1E40AF; }
+.tag-green { background: #D1FAE5; color: #065F46; }
+.tag-orange { background: #FEF3C7; color: #92400E; }
+.tag-red { background: #FEE2E2; color: #991B1B; }
+.tag-purple { background: #EDE9FE; color: #5B21B6; }
+.tag-gray { background: #F4F4F5; color: #52525B; }
+
+/* Checkbox */
+.check-cell { width: 36px; text-align: center; }
+.check-cell input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  padding: 14px 20px;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 500;
+  z-index: 1000;
+  animation: slideUp 0.3s ease-out;
+  display: none;
+}
+
+.toast.success { background: #065F46; color: white; }
+.toast.error { background: #991B1B; color: white; }
+
+@keyframes slideUp {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+/* Empty state */
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--muted);
+}
+
+.empty-icon {
+  font-size: 48px;
+  margin-bottom: 12px;
+  opacity: 0.4;
+}
+
+.empty-state p {
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+/* Sample button */
+.sample-btn {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--accent);
+  cursor: pointer;
+  border: none;
+  background: none;
+  font-family: var(--font);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.sample-btn:hover { color: var(--accent-hover); }
+
+/* Scrollable table container */
+.table-wrap {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-left">
+    <div class="logo">PR</div>
+    <h1>부정보도 조치현황 자동화</h1>
+  </div>
+  <div class="header-status">
+    <span class="status-dot"></span>
+    Agent 연결됨
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- 왼쪽: 입력 패널 -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">카톡 대화 입력</span>
+      <span class="panel-badge">Phase 1</span>
+    </div>
+    <div class="panel-body">
+      <textarea
+        id="chatInput"
+        class="input-area"
+        placeholder="카카오톡 업무방에서 부정보도 조치 대화를 복사해서 여기에 붙여넣으세요.
+
+예시:
+4/10 한국경제 김민수 기자 - 포스코이앤씨 하자 관련 보도, 제목에서 회사명 삭제 요청 → 완료
+4/10 머니투데이 박지영 기자 - 안전사고 취재 문의, 비보도 조치
+4/11 매일경제 이승호 기자 - 분양가 관련 기사, 회사 입장 반영 요청 → 수정 완료"></textarea>
+      <div class="input-hint">
+        카톡 대화를 그대로 복붙하세요. AI가 자동으로 매체·기자·조치유형을 추출합니다.
+        <button class="sample-btn" onclick="loadSample()">샘플 데이터 넣기</button>
+      </div>
+      <button id="analyzeBtn" class="btn btn-primary" onclick="analyze()">
+        AI 분석 시작
+      </button>
+    </div>
+  </div>
+
+  <!-- 오른쪽: 결과 패널 -->
+  <div class="panel">
+    <div class="panel-header">
+      <span class="panel-title">분석 결과</span>
+      <span id="resultBadge" class="panel-badge" style="display:none">0건</span>
+    </div>
+    <div class="panel-body">
+
+      <div id="emptyState" class="empty-state">
+        <div class="empty-icon">&#x1f4cb;</div>
+        <p>왼쪽에 카톡 대화를 붙여넣고<br><strong>AI 분석 시작</strong>을 눌러주세요</p>
+      </div>
+
+      <div id="resultArea" style="display:none">
+        <div id="summaryCards" class="result-summary"></div>
+        <div class="table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr>
+                <th class="check-cell"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
+                <th>매체</th>
+                <th>기자</th>
+                <th>조치유형</th>
+                <th>내용</th>
+              </tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+          </table>
+        </div>
+        <button id="saveBtn" class="btn btn-success" onclick="saveToSharePoint()" style="margin-top:16px">
+          SharePoint에 저장
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script>
+let currentItems = [];
+
+const tagColors = {
+  '비보도조치': 'tag-red',
+  '제목수정': 'tag-blue',
+  '회사명삭제': 'tag-orange',
+  '내용수정': 'tag-purple',
+  '회사입장반영': 'tag-green',
+  '기타': 'tag-gray'
+};
+
+function loadSample() {
+  document.getElementById('chatInput').value = `4/10 한국경제 김민수 기자 - 포스코이앤씨 하자 관련 보도, 기사 제목에서 회사명 삭제 요청 → 삭제 완료
+4/10 머니투데이 박지영 기자 - 빗물펌프장 안전사고 취재 문의 들어옴, 보도 안 하기로 함 (비보도 조치)
+4/11 매일경제 이승호 기자 - 분양가 상승 관련 부정 기사, 회사 입장 반영 요청 → 기사 하단에 회사 입장 추가됨
+4/11 서울경제 최유진 기자 - 현장 안전점검 미흡 보도, 제목 수정 요청 → "포스코이앤씨" → "일부 건설사"로 수정 완료
+4/12 뉴시스 장현우 기자 - 하도급 관련 취재 문의, 사실과 다른 부분 설명 후 보도 보류 (비보도)`;
+}
+
+async function analyze() {
+  const text = document.getElementById('chatInput').value;
+  if (!text.trim()) {
+    showToast('카톡 대화를 입력해주세요', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('analyzeBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 분석 중...';
+
+  try {
+    const resp = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+
+    const data = await resp.json();
+
+    if (data.error) {
+      showToast(data.error, 'error');
+      return;
+    }
+
+    currentItems = data.items || [];
+    renderResults(data);
+
+  } catch (e) {
+    showToast('서버 연결 오류: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'AI 분석 시작';
+  }
+}
+
+function renderResults(data) {
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultArea').style.display = 'block';
+
+  const badge = document.getElementById('resultBadge');
+  badge.style.display = 'inline-block';
+  badge.textContent = data.count + '건';
+
+  const nonCov = data.non_coverage_count || 0;
+  const cov = data.count - nonCov;
+
+  document.getElementById('summaryCards').innerHTML = `
+    <div class="stat-card blue">
+      <div class="stat-num">${data.count}</div>
+      <div class="stat-label">총 추출 건수</div>
+    </div>
+    <div class="stat-card green">
+      <div class="stat-num">${cov}</div>
+      <div class="stat-label">부정보도 조치</div>
+    </div>
+    <div class="stat-card orange">
+      <div class="stat-num">${nonCov}</div>
+      <div class="stat-label">비보도 조치</div>
+    </div>
+  `;
+
+  const tbody = document.getElementById('resultBody');
+  tbody.innerHTML = data.items.map((item, i) => `
+    <tr>
+      <td class="check-cell"><input type="checkbox" class="item-check" data-idx="${i}" checked></td>
+      <td><strong>${item.media || '-'}</strong><br><span style="font-size:11px;color:var(--muted)">${item.date || ''}</span></td>
+      <td>${item.reporter || '-'}</td>
+      <td><span class="tag ${tagColors[item.action_type] || 'tag-gray'}">${item.action_type || '기타'}</span></td>
+      <td style="max-width:200px;font-size:12px;color:var(--sub)">${item.action_detail || item.title || '-'}</td>
+    </tr>
+  `).join('');
+
+  showToast(`${data.count}건 추출 완료`, 'success');
+}
+
+function toggleAll(el) {
+  document.querySelectorAll('.item-check').forEach(cb => cb.checked = el.checked);
+}
+
+async function saveToSharePoint() {
+  const checkedIdxs = [...document.querySelectorAll('.item-check:checked')].map(cb => parseInt(cb.dataset.idx));
+  const selected = checkedIdxs.map(i => currentItems[i]);
+
+  if (selected.length === 0) {
+    showToast('저장할 항목을 선택해주세요', 'error');
+    return;
+  }
+
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> 저장 중...';
+
+  try {
+    const resp = await fetch('/save-to-sharepoint', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: selected })
+    });
+
+    const data = await resp.json();
+
+    if (data.error) {
+      showToast(data.error, 'error');
+    } else {
+      showToast(`${data.saved}/${data.total}건 SharePoint 저장 완료`, 'success');
+    }
+  } catch (e) {
+    showToast('저장 중 오류: ' + e.message, 'error');
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = 'SharePoint에 저장';
+  }
+}
+
+function showToast(msg, type) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.className = 'toast ' + type;
+  toast.style.display = 'block';
+  setTimeout(() => { toast.style.display = 'none'; }, 3000);
+}
+</script>
+
+</body>
+</html>
