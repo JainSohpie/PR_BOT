@@ -91,8 +91,21 @@ def analyze():
     if not CLAUDE_KEY:
         return jsonify({"error": "CLAUDE_KEY 환경변수가 설정되지 않았습니다"}), 500
 
-    # 기간 필터링
-    text = filter_by_date(text, start_date, end_date)
+    # 날짜 필터링 — 맥락 확보를 위해 시작일 7일 전부터 포함
+    if start_date:
+        context_start = (datetime.strptime(start_date, '%Y-%m-%d') - timedelta(days=7)).strftime('%Y-%m-%d')
+    else:
+        context_start = start_date
+    text = filter_by_date(text, context_start, end_date)
+
+    # 프롬프트용 날짜 범위 텍스트
+    date_range_str = ""
+    if start_date and end_date:
+        date_range_str = f"{start_date} ~ {end_date}"
+    elif start_date:
+        date_range_str = f"{start_date} 이후"
+    elif end_date:
+        date_range_str = f"{end_date} 이전"
 
     prompt = f"""아래는 홍보그룹 카카오톡 업무방에서 내보내기한 대화 내용입니다.
 이 대화에서 부정보도 조치 건을 추출하여 JSON 배열로 반환해주세요.
@@ -115,6 +128,7 @@ def analyze():
 - 제목수정, 내용수정은 모두 "제목 및 내용수정"으로 통합 분류하세요
 - 단순 대화("확인했습니다", "네 알겠습니다", 인사 등)는 무시하세요
 - 부정보도 조치와 무관한 일반 업무 대화도 무시하세요
+{f"- 반드시 조치일(action_date)이 {date_range_str} 범위 내에 있는 건만 추출하세요. 조치일이 null인 경우 보도일(report_date)이 이 범위 내에 있는 건만 포함하세요." if date_range_str else ""}
 
 반드시 JSON 배열만 반환하세요. 다른 텍스트 없이 순수 JSON만 출력하세요.
 
