@@ -130,15 +130,21 @@ def analyze():
                 "content-type": "application/json"
             },
             json={
-                "model": "claude-sonnet-4-20250514",
+                "model": "claude-sonnet-4-5-20250929",
                 "max_tokens": 4096,
                 "messages": [{"role": "user", "content": prompt}]
             },
             timeout=60
         )
 
-        result = response.json()
-        ai_text = result["content"][0]["text"]
+result = response.json()
+
+# API 에러 응답 처리
+if response.status_code != 200 or "error" in result:
+    error_msg = result.get("error", {}).get("message", "알 수 없는 오류")
+    return jsonify({"error": f"Claude API 오류: {error_msg}"}), 500
+
+ai_text = result["content"][0]["text"]
 
         # JSON 파싱 (```json 감싸기 제거)
         clean = ai_text.strip()
