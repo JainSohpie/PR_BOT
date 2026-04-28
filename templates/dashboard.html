@@ -1,713 +1,200 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AI 에이전트 '포사원'</title>
-<link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
-<style>
-:root {
-  --bg: #FAFAF8; --card: #FFFFFF; --text: #18181B; --sub: #71717A;
-  --muted: #A1A1AA; --accent: #2563EB; --accent-hover: #1D4ED8;
-  --success: #059669; --success-bg: #ECFDF5; --warning-bg: #FFFBEB;
-  --border: #E4E4E7; --input-bg: #FAFAFA; --teams-purple: #5059C9;
-  --teams-purple-light: #EDEFFB; --excel-green: #107C41; --excel-green-light: #E7F3EC;
-  --kakao-yellow: #FEE500; --kakao-bg: #B2C7D9; --kakao-bubble: #FFFFFF; --kakao-my: #FEE500;
-  --font: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
-}
-* { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 에이전트 '포사원'</title>
+    <link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --kakao-yellow: #FEE500;
+            --kakao-brown: #3C1E1E;
+            --posco-blue: #004587;
+        }
+        body {
+            font-family: 'Pretendard Variable', sans-serif;
+            background-color: #f5f6f7;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        h1 { color: var(--posco-blue); font-size: 24px; margin-bottom: 20px; }
+        
+        textarea {
+            width: 100%;
+            height: 200px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            box-sizing: border-box;
+            font-size: 14px;
+            resize: none;
+            margin-bottom: 10px;
+        }
 
-/* ===== HEADER ===== */
-.header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
-.header-left { display: flex; align-items: center; gap: 12px; }
-.logo { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; }
-.header h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
-.header-status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
-@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
 
-/* ===== LAYOUT ===== */
-.main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; align-items: start; }
-@media (max-width: 900px) { .main { grid-template-columns: 1fr; } }
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
 
-.panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-.panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
-.panel-title { font-size: 14px; font-weight: 600; }
-.panel-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 100px; background: #EFF6FF; color: var(--accent); }
-.panel-body { padding: 20px; }
+        .btn-kakao { background-color: var(--kakao-yellow); color: var(--kakao-brown); }
+        .btn-analyze { background-color: var(--posco-blue); color: white; flex-grow: 1; }
+        button:hover { opacity: 0.9; transform: translateY(-1px); }
 
-.date-row { display: flex; gap: 12px; margin-bottom: 12px; }
-.date-field { flex: 1; }
-.date-label { font-size: 12px; font-weight: 600; color: var(--sub); display: block; margin-bottom: 4px; }
-.date-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: var(--font); font-size: 14px; background: var(--input-bg); color: var(--text); }
-.date-input:focus { outline: none; border-color: var(--accent); }
+        /* 카톡 팝업 스타일 */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.5);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #abc1d1; /* 카톡 배경색 */
+            width: 350px;
+            height: 500px;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .modal-header {
+            background: #abc1d1;
+            padding: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+        }
+        .chat-body {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message {
+            background: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            max-width: 80%;
+            font-size: 13px;
+            position: relative;
+        }
+        .message.mine {
+            align-self: flex-end;
+            background: var(--kakao-yellow);
+        }
+        .modal-footer {
+            padding: 15px;
+            background: white;
+            text-align: center;
+        }
 
-.kakao-upload-btn {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 14px; border: 2px dashed var(--border); border-radius: 8px;
-  cursor: pointer; font-size: 13px; transition: all 0.15s; margin-bottom: 12px;
-  background: #FFFDE7; color: #7A6000; border-color: #FDD835; font-weight: 600;
-  font-family: var(--font);
-}
-.kakao-upload-btn:hover { background: #FFF9C4; border-color: #F9A825; }
-
-.input-area { width: 100%; min-height: 200px; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font); font-size: 14px; line-height: 1.7; resize: vertical; background: var(--input-bg); color: var(--text); }
-.input-area:focus { outline: none; border-color: var(--accent); }
-.input-area::placeholder { color: var(--muted); }
-.input-hint { margin-top: 8px; font-size: 12px; color: var(--muted); }
-
-.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-family: var(--font); font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.15s; width: 100%; margin-top: 12px; }
-.btn-primary { background: var(--accent); color: white; }
-.btn-primary:hover:not(:disabled) { background: var(--accent-hover); }
-.btn-primary:disabled { background: #93C5FD; cursor: not-allowed; }
-.btn-teams { background: var(--teams-purple); color: white; }
-.btn-teams:hover:not(:disabled) { background: #3F4AAA; }
-.btn-teams:disabled { background: #A8AEDC; cursor: not-allowed; }
-
-.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
-@keyframes spin { to { transform: rotate(360deg); } }
-
-/* ===== RESULT ===== */
-.result-summary { display: flex; gap: 12px; margin-bottom: 16px; }
-.stat-card { flex: 1; padding: 12px 16px; border-radius: 8px; text-align: center; }
-.stat-card.blue { background: #EFF6FF; }
-.stat-card.green { background: var(--success-bg); }
-.stat-card.orange { background: var(--warning-bg); }
-.stat-num { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
-.stat-card.blue .stat-num { color: var(--accent); }
-.stat-card.green .stat-num { color: var(--success); }
-.stat-card.orange .stat-num { color: #D97706; }
-.stat-label { font-size: 11px; color: var(--sub); margin-top: 2px; }
-
-.table-wrap { max-height: 500px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
-.result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
-.result-table th { text-align: left; padding: 10px; background: var(--bg); font-weight: 600; font-size: 11px; color: var(--sub); letter-spacing: 0.5px; border-bottom: 1px solid var(--border); position: sticky; top: 0; white-space: nowrap; }
-.result-table td { padding: 10px; border-bottom: 1px solid #F4F4F5; vertical-align: top; }
-.result-table tr:hover td { background: #FAFAFA; }
-
-.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; white-space: nowrap; }
-.tag-blue { background: #DBEAFE; color: #1E40AF; }
-.tag-green { background: #D1FAE5; color: #065F46; }
-.tag-orange { background: #FEF3C7; color: #92400E; }
-.tag-red { background: #FEE2E2; color: #991B1B; }
-.tag-gray { background: #F4F4F5; color: #52525B; }
-.check-cell { width: 36px; text-align: center; }
-.check-cell input { width: 16px; height: 16px; cursor: pointer; accent-color: var(--accent); }
-
-/* ===== TOAST ===== */
-.toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 10px; font-size: 14px; font-weight: 500; z-index: 9999; display: none; }
-.toast.success { background: #065F46; color: white; }
-.toast.error { background: #991B1B; color: white; }
-
-.empty-state { text-align: center; padding: 60px 20px; color: var(--muted); }
-.empty-icon { font-size: 48px; margin-bottom: 12px; opacity: 0.4; }
-.empty-state p { font-size: 14px; line-height: 1.6; }
-.sample-btn { display: inline-block; margin-top: 8px; font-size: 12px; color: var(--accent); cursor: pointer; border: none; background: none; font-family: var(--font); text-decoration: underline; text-underline-offset: 2px; }
-
-/* ===== TEAMS PROGRESS ===== */
-.save-progress { margin-top: 16px; padding: 16px; background: var(--teams-purple-light); border: 1px solid #D1D6F2; border-radius: 10px; display: none; animation: fadeIn 0.3s ease; }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(-4px); } to { opacity: 1; transform: translateY(0); } }
-.save-progress.active { display: block; }
-.save-progress-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; font-size: 13px; font-weight: 600; color: var(--teams-purple); }
-.save-progress-bar-bg { width: 100%; height: 6px; background: rgba(80,89,201,0.15); border-radius: 3px; overflow: hidden; }
-.save-progress-bar { height: 100%; background: linear-gradient(90deg, var(--teams-purple), #7C85E8); width: 0%; transition: width 0.4s ease; border-radius: 3px; }
-.save-progress-step { font-size: 12px; color: var(--sub); margin-top: 6px; }
-
-/* ===== TEAMS MOCKUP ===== */
-.teams-mockup { margin-top: 24px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; background: white; display: none; }
-.teams-mockup.active { display: block; animation: slideUpReveal 0.5s ease; }
-@keyframes slideUpReveal { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-.teams-mockup-header { background: linear-gradient(135deg, var(--teams-purple) 0%, #7C85E8 100%); padding: 12px 16px; display: flex; align-items: center; gap: 10px; color: white; }
-.teams-icon { width: 24px; height: 24px; background: white; border-radius: 4px; display: flex; align-items: center; justify-content: center; color: var(--teams-purple); font-weight: 800; font-size: 13px; }
-.teams-mockup-title { font-size: 13px; font-weight: 600; flex: 1; }
-.teams-mockup-sub { font-size: 11px; opacity: 0.85; }
-.excel-tab { background: var(--excel-green-light); padding: 6px 16px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); font-size: 12px; color: var(--excel-green); font-weight: 600; }
-.excel-icon { width: 16px; height: 16px; background: var(--excel-green); border-radius: 3px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 800; font-size: 10px; }
-.excel-table-wrap { max-height: 280px; overflow-y: auto; }
-.excel-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-.excel-table th { background: #F5F5F5; padding: 8px 10px; font-weight: 600; color: var(--text); font-size: 11px; border-right: 1px solid var(--border); border-bottom: 2px solid var(--border); text-align: left; position: sticky; top: 0; white-space: nowrap; }
-.excel-table td { padding: 8px 10px; border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); vertical-align: top; font-size: 12px; }
-.excel-row-existing { background: white; color: var(--sub); }
-.excel-row-new { background: #FFFBEB; animation: highlightRow 2s ease; }
-@keyframes highlightRow { 0%{background:#FDE68A} 100%{background:#FFFBEB} }
-.excel-row-new td { border-left: 3px solid var(--accent); }
-.excel-row-new td:not(:first-child) { border-left: none; }
-.row-num { background: #F5F5F5; font-weight: 600; color: var(--sub); text-align: center; width: 32px; }
-.new-badge { display: inline-block; background: var(--accent); color: white; font-size: 9px; font-weight: 700; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
-.teams-footer { padding: 10px 16px; background: #FAFAF8; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: var(--sub); }
-.teams-footer-status { display: flex; align-items: center; gap: 6px; color: var(--success); font-weight: 600; }
-
-/* ===== KAKAO MODAL ===== */
-.modal-overlay {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.55);
-  z-index: 2000; display: none; align-items: center; justify-content: center;
-  backdrop-filter: blur(2px);
-}
-.modal-overlay.active { display: flex; }
-
-.kakao-modal {
-  width: 400px; max-width: 95vw; border-radius: 16px; overflow: hidden;
-  box-shadow: 0 24px 60px rgba(0,0,0,0.3); display: flex; flex-direction: column;
-  max-height: 90vh; animation: modalPop 0.25s cubic-bezier(0.34,1.56,0.64,1);
-}
-@keyframes modalPop { from{transform:scale(0.88);opacity:0} to{transform:scale(1);opacity:1} }
-
-.kakao-topbar {
-  background: #3C3C3C; color: white; padding: 10px 16px;
-  display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
-}
-.kakao-topbar-title { font-size: 13px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
-.kakao-topbar-close { background: #FF5F57; width: 14px; height: 14px; border-radius: 50%; border: none; cursor: pointer; }
-
-.kakao-header {
-  background: var(--kakao-yellow); padding: 14px 16px;
-  display: flex; align-items: center; gap: 12px; flex-shrink: 0;
-}
-.kakao-room-icon { width: 42px; height: 42px; background: #3C1E1E; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
-.kakao-room-info { flex: 1; }
-.kakao-room-name { font-size: 15px; font-weight: 700; color: #1A1A1A; }
-.kakao-room-members { font-size: 12px; color: #555; }
-.kakao-menu-btn { background: none; border: none; font-size: 20px; cursor: pointer; color: #333; padding: 4px; }
-
-.kakao-chat-area {
-  background: var(--kakao-bg); flex: 1; overflow-y: auto; padding: 16px 12px;
-  display: flex; flex-direction: column; gap: 4px; min-height: 300px; max-height: 420px;
-}
-.kakao-date-divider {
-  text-align: center; margin: 12px 0 8px;
-}
-.kakao-date-divider span {
-  background: rgba(0,0,0,0.2); color: white; font-size: 11px;
-  padding: 4px 12px; border-radius: 12px; font-weight: 500;
-}
-.kakao-msg-row { display: flex; align-items: flex-end; gap: 6px; margin: 2px 0; }
-.kakao-msg-row.me { flex-direction: row-reverse; }
-.kakao-avatar { width: 34px; height: 34px; border-radius: 10px; background: #5B4FCF; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 700; color: white; flex-shrink: 0; }
-.kakao-avatar.boss { background: #2C6E49; }
-.kakao-avatar.me-av { display: none; }
-.kakao-msg-wrap { max-width: 72%; }
-.kakao-sender { font-size: 11px; font-weight: 600; color: #333; margin-bottom: 3px; padding-left: 2px; }
-.kakao-msg-row.me .kakao-sender { display: none; }
-.kakao-bubble {
-  background: var(--kakao-bubble); border-radius: 4px 14px 14px 14px;
-  padding: 9px 12px; font-size: 13px; line-height: 1.5; color: #1A1A1A;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.1); word-break: keep-all;
-}
-.kakao-msg-row.me .kakao-bubble {
-  background: var(--kakao-my); border-radius: 14px 4px 14px 14px;
-}
-.kakao-time { font-size: 10px; color: rgba(0,0,0,0.45); white-space: nowrap; margin-bottom: 2px; }
-
-.kakao-footer {
-  background: #F5F5F5; border-top: 1px solid #DDD; padding: 12px 16px;
-  display: flex; flex-direction: column; gap: 10px; flex-shrink: 0;
-}
-.kakao-export-tip {
-  font-size: 12px; color: #666; text-align: center; line-height: 1.5;
-  background: #FFF9C4; border-radius: 8px; padding: 8px 12px; border: 1px solid #F9E400;
-}
-.kakao-export-tip strong { color: #7A6000; }
-.kakao-action-row { display: flex; gap: 8px; }
-.kakao-action-btn {
-  flex: 1; padding: 10px; border-radius: 8px; border: none; cursor: pointer;
-  font-size: 13px; font-weight: 600; font-family: var(--font); transition: 0.15s;
-}
-.kakao-action-btn.primary { background: var(--kakao-yellow); color: #1A1A1A; }
-.kakao-action-btn.primary:hover { background: #F0D800; }
-.kakao-action-btn.secondary { background: white; color: #444; border: 1px solid #DDD; }
-.kakao-action-btn.secondary:hover { background: #F5F5F5; }
-
-.file-upload-hidden { display: none; }
-</style>
+        /* 결과 테이블 */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        th, td {
+            padding: 12px;
+            border-bottom: 1px solid #eee;
+            text-align: left;
+            font-size: 14px;
+        }
+        th { background-color: #f8f9fa; color: #555; }
+    </style>
 </head>
 <body>
 
-<!-- ===== KAKAO MODAL ===== -->
-<div class="modal-overlay" id="kakaoModal">
-  <div class="kakao-modal">
-    <div class="kakao-topbar">
-      <div class="kakao-topbar-title">💬 카카오톡 — 홍보팀 업무방</div>
-      <button class="kakao-topbar-close" onclick="closeModal()"></button>
+<div class="container">
+    <h1>🚀 홍사원의 AI 리포트 분석</h1>
+    
+    <textarea id="inputText" placeholder="분석할 대화 내용이나 텍스트를 입력하세요..."></textarea>
+    
+    <div class="btn-group">
+        <button class="btn-kakao" onclick="openKakao()">💬 카톡 대화 불러오기</button>
+        <button class="btn-analyze" onclick="startAnalysis()">AI 분석 시작 ✨</button>
     </div>
-    <div class="kakao-header">
-      <div class="kakao-room-icon">📢</div>
-      <div class="kakao-room-info">
-        <div class="kakao-room-name">홍보팀 업무방</div>
-        <div class="kakao-room-members">팀장, 포사원, 홍보1팀 외 3명</div>
-      </div>
-      <button class="kakao-menu-btn">☰</button>
-    </div>
-    <div class="kakao-chat-area" id="kakaoChatArea"></div>
-    <div class="kakao-footer">
-      <div class="kakao-export-tip">
-        💡 카톡 PC버전 → <strong>≡ 메뉴 → 대화 내보내기</strong>로 txt 파일을 추출한 뒤<br>
-        아래 버튼으로 업로드하거나 샘플을 바로 분석할 수 있어요
-      </div>
-      <div class="kakao-action-row">
-        <button class="kakao-action-btn primary" onclick="document.getElementById('hiddenFileInput').click()">📂 txt 파일 업로드</button>
-        <button class="kakao-action-btn secondary" onclick="useSampleAndClose()">샘플로 분석하기</button>
-      </div>
-    </div>
-  </div>
-</div>
-<input type="file" id="hiddenFileInput" class="file-upload-hidden" accept=".txt" onchange="handleModalFile(this)">
 
-<!-- ===== MAIN ===== -->
-<div class="header">
-  <div class="header-left">
-    <div class="logo">홍</div>
-    <h1>AI 에이전트 '포사원' — 대화기반 이슈·기록 자동화 에이전트</h1>
-  </div>
-  <div class="header-status"><span class="status-dot"></span> Agent 연결됨</div>
-</div>
-
-<div class="main">
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">카톡 대화 입력</span>
-      <span class="panel-badge">Phase 1</span>
-    </div>
-    <div class="panel-body">
-      <div class="date-row">
-        <div class="date-field">
-          <label class="date-label">시작일 (목)</label>
-          <input type="date" id="startDate" class="date-input" value="2026-04-03">
-        </div>
-        <div class="date-field">
-          <label class="date-label">종료일 (수)</label>
-          <input type="date" id="endDate" class="date-input" value="2026-04-09">
-        </div>
-      </div>
-      <button class="kakao-upload-btn" onclick="openModal()">
-        💬 카톡 대화 불러오기 (대화창 팝업)
-      </button>
-      <textarea id="chatInput" class="input-area" placeholder="위 버튼으로 카톡 대화를 불러오거나 직접 붙여넣으세요.
-
-(카톡 PC → 업무방 → ≡ → 대화 내보내기 → txt 파일 업로드)
-
-날짜 구분선이 포함된 전체 txt를 붙여넣으면,
-선택한 기간(목~수)에 해당하는 대화만 자동으로 추출합니다."></textarea>
-      <div class="input-hint">
-        txt 파일 업로드 또는 직접 붙여넣기. 선택한 기간만 자동 필터링됩니다.
-        <button class="sample-btn" onclick="loadSampleDirect()">샘플 데이터 넣기</button>
-      </div>
-      <button id="analyzeBtn" class="btn btn-primary" onclick="analyze()">AI 분석 시작</button>
-    </div>
-  </div>
-
-  <div class="panel">
-    <div class="panel-header">
-      <span class="panel-title">분석 결과</span>
-      <span id="resultBadge" class="panel-badge" style="display:none">0건</span>
-    </div>
-    <div class="panel-body">
-      <div id="emptyState" class="empty-state">
-        <div class="empty-icon">📋</div>
-        <p>왼쪽에 카톡 대화를 붙여넣고<br><strong>AI 분석 시작</strong>을 눌러주세요</p>
-      </div>
-      <div id="resultArea" style="display:none">
-        <div id="summaryCards" class="result-summary"></div>
-        <div class="table-wrap">
-          <table class="result-table">
+    <div id="resultArea">
+        <table id="resultTable" style="display:none;">
             <thead>
-              <tr>
-                <th class="check-cell"><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>
-                <th>보도일</th><th>조치일</th><th>매체/기자</th><th>기사제목</th>
-                <th>이슈요약</th><th>조치유형</th><th>조치내용</th>
-              </tr>
+                <tr>
+                    <th>보도일</th>
+                    <th>매체명</th>
+                    <th>기사 제목</th>
+                    <th>조치 유형</th>
+                    <th>조치 내용</th>
+                </tr>
             </thead>
             <tbody id="resultBody"></tbody>
-          </table>
-        </div>
-        <button id="saveBtn" class="btn btn-teams" onclick="saveToTeams()" style="margin-top:16px">Teams 파일로 전송</button>
-        <div id="saveProgress" class="save-progress">
-          <div class="save-progress-header">
-            <span class="spinner" style="border-color:rgba(80,89,201,0.3);border-top-color:var(--teams-purple);"></span>
-            <span id="progressTitle">Teams 파일에 전송 중...</span>
-          </div>
-          <div class="save-progress-bar-bg"><div id="progressBar" class="save-progress-bar"></div></div>
-          <div id="progressStep" class="save-progress-step">파일 연결 중...</div>
-        </div>
-        <div id="teamsMockup" class="teams-mockup">
-          <div class="teams-mockup-header">
-            <div class="teams-icon">T</div>
-            <div>
-              <div class="teams-mockup-title">이슈관리 채널</div>
-              <div class="teams-mockup-sub">파일 / 이슈관리DB.xlsx</div>
-            </div>
-          </div>
-          <div class="excel-tab">
-            <div class="excel-icon">X</div>
-            <span>2026년 이슈관리 현황</span>
-          </div>
-          <div class="excel-table-wrap">
-            <table class="excel-table">
-              <thead>
-                <tr>
-                  <th class="row-num">#</th>
-                  <th>보도일</th><th>매체</th><th>기자</th><th>기사제목</th><th>조치유형</th><th>조치내용</th>
-                </tr>
-              </thead>
-              <tbody id="excelBody">
-                <tr class="excel-row-existing"><td class="row-num">11</td><td>03/27</td><td>이데일리</td><td>김철수</td><td>건설업계 1분기 실적 부진 심화</td><td>회사입장반영</td><td>실적 개선 전망 코멘트 추가</td></tr>
-                <tr class="excel-row-existing"><td class="row-num">12</td><td>03/28</td><td>아주경제</td><td>박영희</td><td>수도권 분양 시장 위축 우려 확산</td><td>제목 및 내용수정</td><td>시장 전반 표현으로 수정</td></tr>
-                <tr class="excel-row-existing"><td class="row-num">13</td><td>03/31</td><td>파이낸셜뉴스</td><td>이상호</td><td>건설사 부채비율 상승세 지속</td><td>회사명삭제</td><td>업계 평균 비교 자료 제공</td></tr>
-              </tbody>
-            </table>
-          </div>
-          <div class="teams-footer">
-            <div class="teams-footer-status">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 13l4 4L19 7" stroke-linecap="round" stroke-linejoin="round"/></svg>
-              <span id="footerStatus">Teams 파일 동기화 완료</span>
-            </div>
-            <span id="footerTime">방금 업데이트</span>
-          </div>
-        </div>
-      </div>
+        </table>
     </div>
-  </div>
 </div>
 
-<div id="toast" class="toast"></div>
+<div id="kakaoModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <span>채팅방 대화</span>
+            <span style="cursor:pointer" onclick="closeModal()">✕</span>
+        </div>
+        <div class="chat-body">
+            <div class="message">주간 보도 실적 공유드립니다.</div>
+            <div class="message mine">네, 이번 주 비보도 조치 건 위주로 정리해볼게요.</div>
+            <div class="message">오티에르 반포 관련해서 한국경제 기사 하나 떴던데 확인 부탁드려요.</div>
+            <div class="message mine">방금 매니저님께 연락해서 기사 제목 '오티에르 반포, 럭셔리의 정점'으로 수정 요청했고, 오보 부분은 삭제하기로 했습니다.</div>
+            <div class="message">고생하셨습니다!</div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-kakao" style="width:100%" onclick="extractChat()">대화 내용 추출하기</button>
+        </div>
+    </div>
+</div>
 
 <script>
-let currentItems = [];
-const tagColors = {
-  '비보도조치': 'tag-red', '제목 및 내용수정': 'tag-blue',
-  '회사명삭제': 'tag-orange', '회사입장반영': 'tag-green', '기타': 'tag-gray'
-};
-
-const SAMPLE_TEXT = `--------------- 2026년 4월 3일 목요일 ---------------
-[오전 9:23] 팀장: 한국경제 김민수 기자 "포스코이앤씨, 강남 재개발 현장 하자 분쟁 확산" 기사 나왔어. 제목에서 회사명 빼달라고 요청해
-[오전 9:45] 포사원: 확인했습니다. 김민수 기자한테 바로 연락드렸습니다
-[오전 10:30] 포사원: 제목 수정 완료됐습니다. "포스코이앤씨" → "일부 건설사"로 변경 확인했습니다
-
-[오후 2:15] 팀장: 머니투데이 박지영 기자한테서 포스코이앤씨 빗물펌프장 안전사고 취재 문의 왔어. 비보도 협의해줘
-[오후 2:50] 포사원: 네, 박지영 기자 통화 연결했습니다
-[오후 3:00] 포사원: 통화해서 상황 충분히 설명드렸고, 보도 안 하기로 했습니다. 비보도 조치 완료
-
---------------- 2026년 4월 4일 금요일 ---------------
-[오전 8:50] 팀장: 매일경제 이승호 기자 "수도권 분양가 상승 논란, 포스코이앤씨도 도마 위" 기사 확인해봐. 우리 입장이 빠져있어
-[오전 9:20] 포사원: 확인했습니다. 이승호 기자에게 회사 입장 반영 요청드리겠습니다
-[오후 1:15] 포사원: 기사 하단에 회사 공식 입장 추가 완료됐습니다. 기자 확인 받았습니다
-
-[오후 4:30] 팀장: 뉴시스 장현우 기자 "건설사 하도급 대금 미지급 실태" 취재 문의 들어옴. 우리 이름 들어갈 것 같은데
-[오후 5:00] 포사원: 사실관계 충분히 설명드렸고 보도 보류하기로 했습니다. 비보도 조치 완료
-
---------------- 2026년 4월 7일 월요일 ---------------
-[오전 10:00] 팀장: 서울경제 최유진 기자 "포스코이앤씨 현장 안전점검 미흡 논란" 기사 떴어. 본문 내용 중에 사실과 다른 부분 있어. 수정 요청해
-[오전 11:30] 포사원: 최유진 기자 통화 완료. 오류 부분 2건 수정 반영 확인했습니다
-
-[오후 2:00] 팀장: 조선비즈 이준혁 기자 "포스코이앤씨 1분기 영업익 급감" 기사, 제목이 너무 자극적이야. 수정 요청해봐
-[오후 3:20] 포사원: 이준혁 기자와 협의 완료. "포스코이앤씨, 시장 둔화 속 실적 조정" 으로 제목 변경됐습니다
-
---------------- 2026년 4월 8일 화요일 ---------------
-[오전 9:10] 팀장: 연합뉴스 강민정 기자 "건설사 부실시공 논란" 기사에 우리 실명 들어가 있어. 회사명 삭제 요청해줘
-[오전 10:45] 포사원: 강민정 기자 통화 완료. 기사에서 포스코이앤씨 명칭 삭제 확인했습니다`;
-
-// 카카오 대화 데이터
-const kakaoMessages = [
-  { date: '2026년 4월 3일 목요일' },
-  { sender: '팀장', time: '오전 9:23', text: '한국경제 김민수 기자 "포스코이앤씨, 강남 재개발 현장 하자 분쟁 확산" 기사 나왔어. 제목에서 회사명 빼달라고 요청해', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오전 9:45', text: '확인했습니다. 김민수 기자한테 바로 연락드렸습니다 👍', isMe: true },
-  { sender: '포사원', time: '오전 10:30', text: '제목 수정 완료됐습니다.\n"포스코이앤씨" → "일부 건설사"로 변경 확인했습니다 ✅', isMe: true },
-  { sender: '팀장', time: '오후 2:15', text: '머니투데이 박지영 기자한테서 빗물펌프장 안전사고 취재 문의 왔어. 비보도 협의해줘', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오후 3:00', text: '통화해서 상황 충분히 설명드렸고, 보도 안 하기로 했습니다. 비보도 조치 완료 ✅', isMe: true },
-  { date: '2026년 4월 4일 금요일' },
-  { sender: '팀장', time: '오전 8:50', text: '매일경제 이승호 기자 "수도권 분양가 상승 논란, 포스코이앤씨도 도마 위" 기사 확인해봐. 우리 입장이 빠져있어', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오후 1:15', text: '기사 하단에 회사 공식 입장 추가 완료됐습니다. 기자 확인 받았습니다 ✅', isMe: true },
-  { sender: '팀장', time: '오후 4:30', text: '뉴시스 장현우 기자 "건설사 하도급 대금 미지급 실태" 취재 문의 들어옴. 우리 이름 들어갈 것 같은데', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오후 5:00', text: '사실관계 설명드렸고 보도 보류하기로 했습니다 ✅', isMe: true },
-  { date: '2026년 4월 7일 월요일' },
-  { sender: '팀장', time: '오전 10:00', text: '서울경제 최유진 기자 "포스코이앤씨 현장 안전점검 미흡 논란" 기사 떴어. 사실과 다른 부분 수정 요청해', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오전 11:30', text: '최유진 기자 통화 완료. 오류 2건 수정 반영 확인했습니다 ✅', isMe: true },
-  { sender: '팀장', time: '오후 2:00', text: '조선비즈 이준혁 기자 "포스코이앤씨 1분기 영업익 급감" 제목 너무 자극적이야. 수정 요청해봐', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오후 3:20', text: '"포스코이앤씨, 시장 둔화 속 실적 조정"으로 제목 변경 완료됐습니다 ✅', isMe: true },
-  { date: '2026년 4월 8일 화요일' },
-  { sender: '팀장', time: '오전 9:10', text: '연합뉴스 강민정 기자 "건설사 부실시공 논란" 기사에 우리 실명 들어가 있어. 삭제 요청해줘', isMe: false, role: 'boss' },
-  { sender: '포사원', time: '오전 10:45', text: '강민정 기자 통화 완료. 포스코이앤씨 명칭 삭제 확인했습니다 ✅', isMe: true },
-];
-
-const SYSTEM_PROMPT = `당신은 홍보팀의 유능한 AI 비서 '포사원'입니다. 사용자가 제공하는 카카오톡 대화 내용에서 '언론 보도 대응 및 이슈 조치' 사항을 찾아내어 JSON 배열 형태로 추출해야 합니다.
-
-[추출 규칙]
-1. report_date: 보도(예정)일 (MM/DD 형식, 대화의 날짜 구분선 기준으로 추정)
-2. action_date: 조치 완료일 (MM/DD 형식, 없으면 report_date와 동일하게)
-3. media: 언론사명 (반드시 추출)
-4. reporter: 기자명 (없으면 "미상")
-5. title: 기사 제목 (대화에서 언급된 제목 그대로. 없으면 이슈 내용으로 구체적인 가상 제목 생성, 절대 null이나 빈값 금지)
-6. issue: 이슈 요약 (한 문장, 절대 null이나 빈값 금지)
-7. action_type: 반드시 다음 중 하나만 선택 ['비보도조치', '제목 및 내용수정', '회사명삭제', '회사입장반영', '기타']
-8. action_detail: 구체적인 조치 내용 (한두 문장, 절대 null이나 빈값 금지)
-
-중요: title, issue, action_detail 은 절대 null, "-", 빈값이 되면 안 됩니다. 대화에서 충분히 유추하여 채워넣으세요.
-
-반드시 다른 설명이나 마크다운 없이 순수 JSON 배열로만 답변하세요:
-[{"report_date":"04/03","action_date":"04/03","media":"한국경제","reporter":"김민수","title":"포스코이앤씨, 강남 재개발 현장 하자 분쟁 확산","issue":"기사 제목에 회사명이 노출되어 삭제 조치 요청","action_type":"회사명삭제","action_detail":"기사 제목 내 '포스코이앤씨' → '일부 건설사'로 수정 완료"}]
-
-이슈나 조치 내용이 전혀 없는 대화라면 빈 배열 []을 반환하세요.`;
-
-/* ===== 카카오 모달 ===== */
-function openModal() {
-  renderKakaoChat();
-  document.getElementById('kakaoModal').classList.add('active');
-}
-function closeModal() {
-  document.getElementById('kakaoModal').classList.remove('active');
-}
-document.getElementById('kakaoModal').addEventListener('click', function(e) {
-  if (e.target === this) closeModal();
-});
-
-function renderKakaoChat() {
-  const area = document.getElementById('kakaoChatArea');
-  area.innerHTML = '';
-  kakaoMessages.forEach(msg => {
-    if (msg.date) {
-      const div = document.createElement('div');
-      div.className = 'kakao-date-divider';
-      div.innerHTML = `<span>${msg.date}</span>`;
-      area.appendChild(div);
-      return;
-    }
-    const row = document.createElement('div');
-    row.className = 'kakao-msg-row' + (msg.isMe ? ' me' : '');
-    const avatarLetter = msg.role === 'boss' ? '장' : '사';
-    const avatarClass = msg.role === 'boss' ? 'kakao-avatar boss' : 'kakao-avatar';
-    row.innerHTML = `
-      ${!msg.isMe ? `<div class="${avatarClass}">${avatarLetter}</div>` : ''}
-      <div class="kakao-msg-wrap">
-        ${!msg.isMe ? `<div class="kakao-sender">${msg.sender}</div>` : ''}
-        <div class="kakao-bubble">${msg.text.replace(/\n/g,'<br>')}</div>
-      </div>
-      <div class="kakao-time">${msg.time}</div>
-    `;
-    area.appendChild(row);
-  });
-  setTimeout(() => { area.scrollTop = area.scrollHeight; }, 50);
-}
-
-function useSampleAndClose() {
-  document.getElementById('chatInput').value = SAMPLE_TEXT;
-  closeModal();
-  showToast('샘플 대화가 입력됐습니다', 'success');
-}
-
-function handleModalFile(input) {
-  const file = input.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = e => {
-    document.getElementById('chatInput').value = e.target.result;
-    closeModal();
-    showToast(file.name + ' 불러오기 완료', 'success');
-  };
-  reader.readAsText(file, 'UTF-8');
-}
-
-function loadSampleDirect() {
-  document.getElementById('chatInput').value = SAMPLE_TEXT;
-  showToast('샘플 데이터가 입력됐습니다', 'success');
-}
-
-/* ===== 날짜 필터 ===== */
-function filterByDate(text, startDate, endDate) {
-  if (!startDate || !endDate) return text;
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  const lines = text.split('\n');
-  let inRange = false;
-  const result = [];
-  for (const line of lines) {
-    const m = line.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
-    if (m) {
-      const d = new Date(parseInt(m[1]), parseInt(m[2])-1, parseInt(m[3]));
-      inRange = d >= start && d <= end;
-    }
-    if (inRange) result.push(line);
-  }
-  return result.length > 0 ? result.join('\n') : text;
-}
-
-/* ===== 분석 ===== */
-async function analyze() {
-  const rawText = document.getElementById('chatInput').value;
-  if (!rawText.trim()) { showToast('카톡 대화를 입력해주세요', 'error'); return; }
-
-  const startDate = document.getElementById('startDate').value;
-  const endDate = document.getElementById('endDate').value;
-  const text = filterByDate(rawText, startDate, endDate);
-
-  const btn = document.getElementById('analyzeBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 포사원이 분석 중...';
-  document.getElementById('saveProgress').classList.remove('active');
-  document.getElementById('teamsMockup').classList.remove('active');
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-calls': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 2000,
-        system: SYSTEM_PROMPT,
-        messages: [{ role: 'user', content: text }]
-      })
-    });
-
-    if (!response.ok) {
-      const err = await response.json();
-      throw new Error(err.error?.message || 'API 오류 (' + response.status + ')');
+    function openKakao() {
+        document.getElementById('kakaoModal').style.display = 'flex';
     }
 
-    const apiData = await response.json();
-    const raw = apiData.content?.[0]?.text || '[]';
-    const cleaned = raw.replace(/```json|```/gi, '').trim();
-
-    let items;
-    try { items = JSON.parse(cleaned); }
-    catch(e) { throw new Error('AI 응답 파싱 실패. 다시 시도해주세요.'); }
-
-    if (!Array.isArray(items)) throw new Error('올바르지 않은 응답 형식입니다.');
-    if (items.length === 0) {
-      showToast('이슈/조치 내용을 찾지 못했습니다.', 'error');
-      return;
+    function closeModal() {
+        document.getElementById('kakaoModal').style.display = 'none';
     }
 
-    // null 값 후처리
-    items = items.map(item => ({
-      ...item,
-      title: item.title && item.title !== '-' && item.title !== 'null' ? item.title : `${item.media || '언론사'} 관련 보도`,
-      issue: item.issue && item.issue !== '-' ? item.issue : `${item.action_type || '조치'} 관련 이슈`,
-      action_detail: item.action_detail && item.action_detail !== '-' ? item.action_detail : `${item.action_type} 처리 완료`,
-      reporter: item.reporter && item.reporter !== '-' ? item.reporter : '미상',
-      report_date: item.report_date || '-',
-      action_date: item.action_date || item.report_date || '-',
-    }));
+    function extractChat() {
+        const sampleChat = `[김팀장] [오후 5:00] 주간 보도 실적 공유드립니다.\n[나] [오후 5:01] 네, 이번 주 비보도 조치 건 위주로 정리해볼게요.\n[김팀장] [오후 5:02] 오티에르 반포 관련해서 한국경제 기사 하나 떴던데 확인 부탁드려요.\n[나] [오후 5:05] 방금 매니저님께 연락해서 기사 제목 '오티에르 반포, 럭셔리의 정점'으로 수정 요청했고, 오보 부분은 삭제하기로 했습니다.`;
+        document.getElementById('inputText').value = sampleChat;
+        closeModal();
+    }
 
-    currentItems = items;
-    const nonCovCount = items.filter(i => i.action_type === '비보도조치').length;
-    renderResults({ items, count: items.length, non_coverage_count: nonCovCount });
+    async function startAnalysis() {
+        const text = document.getElementById('inputText').value;
+        if(!text) return alert("내용을 입력해주세요!");
 
-  } catch(e) {
-    showToast('오류: ' + e.message, 'error');
-  } finally {
-    btn.disabled = false;
-    btn.innerHTML = 'AI 분석 시작';
-  }
-}
-
-function renderResults(data) {
-  document.getElementById('emptyState').style.display = 'none';
-  document.getElementById('resultArea').style.display = 'block';
-  const badge = document.getElementById('resultBadge');
-  badge.style.display = 'inline-block';
-  badge.textContent = data.count + '건';
-  const nonCov = data.non_coverage_count || 0;
-  const cov = data.count - nonCov;
-  document.getElementById('summaryCards').innerHTML = `
-    <div class="stat-card blue"><div class="stat-num">${data.count}</div><div class="stat-label">총 추출 건수</div></div>
-    <div class="stat-card green"><div class="stat-num">${cov}</div><div class="stat-label">부정보도 조치</div></div>
-    <div class="stat-card orange"><div class="stat-num">${nonCov}</div><div class="stat-label">비보도 조치</div></div>`;
-  document.getElementById('resultBody').innerHTML = data.items.map((item, i) => `
-    <tr>
-      <td class="check-cell"><input type="checkbox" class="item-check" data-idx="${i}" checked></td>
-      <td style="white-space:nowrap;font-size:12px">${item.report_date}</td>
-      <td style="white-space:nowrap;font-size:12px">${item.action_date}</td>
-      <td><strong>${item.media}</strong><br><span style="font-size:11px;color:var(--muted)">${item.reporter}</span></td>
-      <td style="max-width:160px;font-size:12px;font-weight:500">${item.title}</td>
-      <td style="max-width:150px;font-size:12px;color:var(--sub)">${item.issue}</td>
-      <td><span class="tag ${tagColors[item.action_type] || 'tag-gray'}">${item.action_type}</span></td>
-      <td style="max-width:150px;font-size:12px;color:var(--sub)">${item.action_detail}</td>
-    </tr>`).join('');
-  showToast(`${data.count}건 추출 완료`, 'success');
-}
-
-function toggleAll(el) { document.querySelectorAll('.item-check').forEach(cb => cb.checked = el.checked); }
-
-async function saveToTeams() {
-  const selected = [...document.querySelectorAll('.item-check:checked')].map(cb => currentItems[parseInt(cb.dataset.idx)]);
-  if (selected.length === 0) { showToast('저장할 항목을 선택해주세요', 'error'); return; }
-
-  const btn = document.getElementById('saveBtn');
-  btn.disabled = true;
-  btn.innerHTML = '<span class="spinner"></span> 전송 중...';
-
-  const progress = document.getElementById('saveProgress');
-  const progressBar = document.getElementById('progressBar');
-  const progressStep = document.getElementById('progressStep');
-  const progressTitle = document.getElementById('progressTitle');
-  progress.classList.add('active');
-  progressBar.style.width = '0%';
-
-  const steps = [
-    { progress: 25, text: 'Teams 채널 인증 중...' },
-    { progress: 55, text: '이슈관리DB.xlsx 파일 연결 중...' },
-    { progress: 85, text: `${selected.length}건 데이터 입력 중...` },
-    { progress: 100, text: '동기화 완료' }
-  ];
-  for (const step of steps) {
-    await new Promise(r => setTimeout(r, 600));
-    progressBar.style.width = step.progress + '%';
-    progressStep.textContent = step.text;
-  }
-  await new Promise(r => setTimeout(r, 300));
-  progressTitle.textContent = `Teams 파일 전송 완료 (${selected.length}건)`;
-  appendRowsToMockup(selected);
-  btn.disabled = false;
-  btn.innerHTML = 'Teams 파일로 전송';
-  showToast(`${selected.length}건 Teams 파일 전송 완료`, 'success');
-}
-
-function appendRowsToMockup(items) {
-  const mockup = document.getElementById('teamsMockup');
-  const excelBody = document.getElementById('excelBody');
-  mockup.classList.add('active');
-  const existingRows = excelBody.querySelectorAll('tr');
-  let lastNum = 13;
-  if (existingRows.length > 0) {
-    const lastRowNum = existingRows[existingRows.length-1].querySelector('.row-num');
-    if (lastRowNum) { const n = parseInt(lastRowNum.textContent); if (!isNaN(n)) lastNum = n; }
-  }
-  setTimeout(() => mockup.scrollIntoView({ behavior: 'smooth', block: 'nearest' }), 200);
-  items.forEach((item, idx) => {
-    setTimeout(() => {
-      const tr = document.createElement('tr');
-      tr.className = 'excel-row-new';
-      tr.innerHTML = `
-        <td class="row-num">${lastNum+idx+1}</td>
-        <td>${formatDate(item.report_date)}</td>
-        <td>${item.media}</td>
-        <td>${item.reporter}</td>
-        <td>${item.title}${idx===0?'<span class="new-badge">NEW</span>':''}</td>
-        <td>${item.action_type}</td>
-        <td>${item.action_detail}</td>`;
-      excelBody.appendChild(tr);
-      document.querySelector('.excel-table-wrap').scrollTop = 99999;
-      document.getElementById('footerStatus').textContent = `Teams 파일 동기화 완료 (${idx+1}/${items.length})`;
-      document.getElementById('footerTime').textContent = '방금 업데이트';
-    }, idx * 350);
-  });
-}
-
-function formatDate(dateStr) {
-  if (!dateStr || dateStr === '-') return '-';
-  const m = dateStr.match(/(\d{1,2})[\/\-월](\d{1,2})/);
-  if (m) return `${String(m[1]).padStart(2,'0')}/${String(m[2]).padStart(2,'0')}`;
-  return dateStr;
-}
-
-function showToast(msg, type) {
-  const t = document.getElementById('toast');
-  t.textContent = msg; t.className = 'toast ' + type; t.style.display = 'block';
-  setTimeout(() => t.style.display = 'none', 3000);
-}
-</script>
-</body>
-</html>
+        const btn = document.querySelector('.btn-analyze');
+        btn.innerText = "분석 중... ⏳";
+        btn.disabled
