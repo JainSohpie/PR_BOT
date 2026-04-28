@@ -1,226 +1,297 @@
-from flask import Flask, request, jsonify, render_template_string
-import google.generativeai as genai
-import json
-import re
-
-app = Flask(__name__)
-
-# ==========================================
-# 1. 제미나이 API 설정
-# ==========================================
-genai.configure(api_key="AIzaSyB9Ade86AvQJAUp6BK7y8ETFtkK2yFAoKc") # 발급받은 키를 여기에 입력하세요
-model = genai.GenerativeModel('gemini-1.5-flash')
-
-# ==========================================
-# 2. 시스템 프롬프트 (데이터 추출 규칙)
-# ==========================================
-SYSTEM_PROMPT = """
-당신은 홍보팀의 유능한 AI 비서 '포사원'입니다. 
-사용자가 제공하는 카카오톡 대화 내용에서 '언론 보도 대응 및 이슈 조치' 사항을 찾아내어 JSON 배열 형태로 추출해야 합니다.
-
-[추출 규칙]
-1. report_date: 보도(예정)일 (MM/DD 형식)
-2. action_date: 조치 완료일 (MM/DD 형식)
-3. media: 언론사명
-4. reporter: 기자명
-5. title: 기사 제목
-6. issue: 이슈 요약 (한 문장)
-7. action_type: 다음 중 하나 선택 ['비보도조치', '제목 및 내용수정', '회사명삭제', '회사입장반영', '기타']
-8. action_detail: 구체적인 조치 내용
-
-[응답 포맷]
-반드시 다른 설명 없이 아래와 같은 순수 JSON 형식으로만 답변하세요:
-[
-  {"report_date": "...", "action_date": "...", "media": "...", "reporter": "...", "title": "...", "issue": "...", "action_type": "...", "action_detail": "..."}
-]
-"""
-
-# ==========================================
-# 3. 라우트 설정
-# ==========================================
-
-@app.route('/')
-def index():
-    # 아래에 제공할 HTML 코드를 렌더링합니다.
-    return render_template_string(HTML_TEMPLATE)
-
-@app.route('/analyze', methods=['POST'])
-def analyze():
-    data = request.json
-    chat_text = data.get('text', '')
-    
-    if not chat_text:
-        return jsonify({"error": "데이터가 없습니다."}), 400
-
-    try:
-        # 제미나이에게 분석 요청
-        prompt = f"{SYSTEM_PROMPT}\n\n[분석할 대화 내용]\n{chat_text}"
-        response = model.generate_content(prompt)
-        
-        # JSON 문자열만 추출 (마크다운 제거)
-        json_str = re.search(r'\[.*\]', response.text, re.DOTALL).group()
-        items = json.loads(json_str)
-        
-        return jsonify({
-            "items": items,
-            "count": len(items),
-            "non_coverage_count": len([i for i in items if i['action_type'] == '비보도조치'])
-        })
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-# ==========================================
-# 4. 프론트엔드 HTML (애니메이션 강화 버전)
-# ==========================================
-HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <title>AI 에이전트 '포사원'</title>
-    <link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
-    <style>
-        :root {
-            --bg: #FAFAF8; --card: #FFFFFF; --text: #18181B; --sub: #71717A;
-            --muted: #A1A1AA; --accent: #2563EB; --success: #059669;
-            --border: #E4E4E7; --teams-purple: #5059C9; --font: 'Pretendard Variable', sans-serif;
-        }
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 20px; }
-        .main { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
-        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-        .header { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
-        .logo { width: 32px; height: 32px; background: var(--accent); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
-        
-        textarea { width: 100%; height: 300px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; resize: none; background: #F9F9F9; margin-bottom: 10px; }
-        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-teams { background: var(--teams-purple); color: white; margin-top: 15px; }
-        
-        .result-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 15px; }
-        .result-table th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--sub); }
-        .result-table td { padding: 10px; border-bottom: 1px solid #F4F4F5; }
-        
-        .tag { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
-        .tag-red { background: #FEE2E2; color: #991B1B; }
-        .tag-blue { background: #DBEAFE; color: #1E40AF; }
-        
-        /* 엑셀 애니메이션 효과 */
-        .teams-mockup { margin-top: 20px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: none; background: white; }
-        .teams-mockup.active { display: block; animation: slideUp 0.5s ease; }
-        .excel-row-new { animation: rowAppear 0.6s ease forwards; opacity: 0; background: #FFFBEB; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-        @keyframes rowAppear { to { opacity: 1; background: white; } }
-        
-        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
-        @keyframes spin { to { transform: rotate(360deg); } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title> AI 에이전트 '포사원' </title>
+<link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
+<style>
+/* [기존 스타일 유지] */
+:root {
+  --bg: #FAFAF8; --card: #FFFFFF; --text: #18181B; --sub: #71717A;
+  --muted: #A1A1AA; --accent: #2563EB; --accent-hover: #1D4ED8;
+  --success: #059669; --success-bg: #ECFDF5; --warning-bg: #FFFBEB;
+  --border: #E4E4E7; --input-bg: #FAFAFA; --teams-purple: #5059C9;
+  --teams-purple-light: #EDEFFB; --excel-green: #107C41; --excel-green-light: #E7F3EC;
+  --font: 'Pretendard Variable', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: var(--font); background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+
+/* [추가: 가상 커서 및 자동화 연출 스타일] */
+#virtualCursor {
+    position: fixed;
+    width: 28px; height: 28px;
+    background: rgba(37, 99, 235, 0.5);
+    border: 2px solid white;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 10000;
+    display: none;
+    transition: all 0.9s cubic-bezier(0.45, 0.05, 0.55, 0.95); /* 실제 사람이 움직이는 듯한 곡선 */
+    box-shadow: 0 0 20px rgba(37, 99, 235, 0.4);
+}
+#virtualCursor.clicking { transform: scale(0.8); background: rgba(5, 150, 105, 0.8); }
+
+.focus-row { background-color: #EFF6FF !important; outline: 2px solid var(--accent); transition: background 0.3s; }
+
+/* [기존 디자인 클래스들 그대로 유지] */
+.header { background: var(--card); border-bottom: 1px solid var(--border); padding: 16px 24px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header-left { display: flex; align-items: center; gap: 12px; }
+.logo { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 700; font-size: 14px; }
+.header h1 { font-size: 16px; font-weight: 600; letter-spacing: -0.3px; }
+.header-status { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+.status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--success); }
+.main { max-width: 1200px; margin: 0 auto; padding: 32px 24px; display: grid; grid-template-columns: 1fr 1.4fr; gap: 24px; align-items: start; }
+.panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+.panel-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.panel-title { font-size: 14px; font-weight: 600; }
+.panel-badge { font-size: 11px; font-weight: 600; padding: 3px 10px; border-radius: 100px; background: #EFF6FF; color: var(--accent); }
+.panel-body { padding: 20px; }
+.date-row { display: flex; gap: 12px; margin-bottom: 12px; }
+.date-field { flex: 1; }
+.date-label { font-size: 12px; font-weight: 600; color: var(--sub); display: block; margin-bottom: 4px; }
+.date-input { width: 100%; border: 1px solid var(--border); border-radius: 8px; padding: 10px 14px; font-family: var(--font); font-size: 14px; background: var(--input-bg); color: var(--text); }
+.input-area { width: 100%; min-height: 240px; border: 1px solid var(--border); border-radius: 8px; padding: 16px; font-family: var(--font); font-size: 14px; background: var(--input-bg); resize: vertical; }
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 20px; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: 0.15s; width: 100%; margin-top: 12px; }
+.btn-primary { background: var(--accent); color: white; }
+.btn-teams { background: var(--teams-purple); color: white; }
+.spinner { width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.6s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.table-wrap { max-height: 400px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; }
+.result-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.result-table th { text-align: left; padding: 10px; background: var(--bg); border-bottom: 1px solid var(--border); position: sticky; top: 0; }
+.result-table td { padding: 10px; border-bottom: 1px solid #F4F4F5; }
+.tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+.tag-red { background: #FEE2E2; color: #991B1B; }
+.tag-blue { background: #DBEAFE; color: #1E40AF; }
+.tag-orange { background: #FEF3C7; color: #92400E; }
+.tag-green { background: #D1FAE5; color: #065F46; }
+
+/* Teams Mockup & Animation */
+.save-progress { margin-top: 16px; padding: 16px; background: var(--teams-purple-light); border: 1px solid #D1D6F2; border-radius: 10px; display: none; }
+.save-progress.active { display: block; }
+.save-progress-bar-bg { width: 100%; height: 6px; background: rgba(80, 89, 201, 0.15); border-radius: 3px; overflow: hidden; margin: 10px 0; }
+.save-progress-bar { height: 100%; background: var(--teams-purple); width: 0%; transition: width 0.4s ease; }
+.teams-mockup { margin-top: 24px; border: 1px solid var(--border); border-radius: 12px; overflow: hidden; display: none; background: white; animation: slideUp 0.5s ease; }
+.teams-mockup.active { display: block; }
+@keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+.excel-row-new { background: #FFFBEB; animation: highlight 2s ease forwards; }
+@keyframes highlight { 0% { background: #FDE68A; } 100% { background: white; } }
+.toast { position: fixed; bottom: 24px; right: 24px; padding: 14px 20px; border-radius: 10px; z-index: 1000; display: none; color: white; }
+.toast.success { background: #065F46; }
+</style>
 </head>
 <body>
 
+<div id="virtualCursor"></div>
+
 <div class="header">
+  <div class="header-left">
     <div class="logo">홍</div>
-    <h2>AI 에이전트 '포사원' (Powered by Gemini)</h2>
+    <h1>AI 에이전트 '포사원' — 대화기반 이슈·기록 자동화</h1>
+  </div>
+  <div class="header-status"><span class="status-dot"></span> Agent 연결됨</div>
 </div>
 
 <div class="main">
-    <div class="panel">
-        <h3 style="margin-bottom:10px">카톡 대화 입력</h3>
-        <textarea id="chatInput" placeholder="카톡 대화 내용을 붙여넣으세요..."></textarea>
-        <button class="btn btn-primary" onclick="analyze()" id="analyzeBtn">AI 분석 시작</button>
-        <button class="btn" style="margin-top:10px; background:#E4E4E7;" onclick="loadSample()">샘플 데이터 불러오기</button>
+  <div class="panel">
+    <div class="panel-header"><span class="panel-title">카톡 대화 입력</span><span class="panel-badge">Phase 1</span></div>
+    <div class="panel-body">
+      <textarea id="chatInput" class="input-area" placeholder="대화를 붙여넣으세요..."></textarea>
+      <div style="margin-top:8px">
+        <button class="sample-btn" onclick="loadSample()" style="color:var(--accent); cursor:pointer; background:none; border:none; text-decoration:underline;">샘플 데이터 넣기</button>
+      </div>
+      <button id="analyzeBtn" class="btn btn-primary" onclick="analyze()">AI 분석 시작</button>
     </div>
+  </div>
 
-    <div class="panel">
-        <h3>분석 결과</h3>
-        <div id="resultArea" style="display:none">
-            <table class="result-table">
-                <thead><tr><th>날짜</th><th>매체/기자</th><th>제목</th><th>유형</th></tr></thead>
-                <tbody id="resultBody"></tbody>
-            </table>
-            <button class="btn btn-teams" onclick="saveToTeams()" id="saveBtn">Teams 엑셀로 전송하기</button>
-            
-            <div id="teamsMockup" class="teams-mockup">
-                <div style="background:var(--teams-purple); color:white; padding:8px 15px; font-size:12px;">이슈관리DB.xlsx - Teams 실시간 동기화</div>
-                <table class="result-table" style="margin:0;">
-                    <tbody id="excelBody"></tbody>
-                </table>
-            </div>
+  <div class="panel">
+    <div class="panel-header"><span class="panel-title">분석 결과</span><span id="resultBadge" class="panel-badge" style="display:none">0건</span></div>
+    <div class="panel-body">
+      <div id="emptyState" style="text-align:center; padding:60px 0; color:var(--muted);">
+        <p>왼쪽에서 분석을 시작해주세요</p>
+      </div>
+      
+      <div id="resultArea" style="display:none">
+        <div id="summaryCards" style="display:flex; gap:10px; margin-bottom:15px;"></div>
+        <div class="table-wrap">
+          <table class="result-table">
+            <thead>
+              <tr><th>보도일</th><th>매체/기자</th><th>기사제목</th><th>조치유형</th></tr>
+            </thead>
+            <tbody id="resultBody"></tbody>
+          </table>
         </div>
-        <div id="emptyState" style="text-align:center; padding:100px 0; color:var(--muted);">분석 버튼을 눌러주세요.</div>
+        
+        <button id="saveBtn" class="btn btn-teams" onclick="saveToTeams()">Teams 파일로 전송</button>
+
+        <div id="saveProgress" class="save-progress">
+          <div style="font-size:13px; color:var(--teams-purple); font-weight:600;">Teams 동기화 중...</div>
+          <div class="save-progress-bar-bg"><div id="progressBar" class="save-progress-bar"></div></div>
+          <div id="progressStep" style="font-size:12px; color:var(--sub);">준비 중...</div>
+        </div>
+
+        <div id="teamsMockup" class="teams-mockup">
+          <div style="background:var(--teams-purple); color:white; padding:10px 15px; font-size:12px; font-weight:600;">이슈관리DB.xlsx - 실시간 동기화</div>
+          <div class="excel-table-wrap" style="max-height:250px; overflow-y:auto;">
+            <table class="excel-table" style="width:100%; border-collapse:collapse; font-size:12px;">
+              <tbody id="excelBody">
+                <tr style="background:#f5f5f5; font-weight:600;"><td style="padding:8px;">#</td><td>보도일</td><td>매체</td><td>제목</td><td>상태</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
     </div>
+  </div>
 </div>
+
+<div id="toast" class="toast"></div>
 
 <script>
 let currentItems = [];
+const tagColors = { '비보도조치': 'tag-red', '제목 및 내용수정': 'tag-blue', '회사명삭제': 'tag-orange', '회사입장반영': 'tag-green' };
 
 function loadSample() {
-    document.getElementById('chatInput').value = `--------------- 2026년 4월 3일 ---------------
-[오전 9:23] 팀장: 한국경제 김민수 기자 "포스코이앤씨 하자 분쟁" 기사 떴다. 제목 수정 요청해.
-[오전 10:30] 포사원: 수정 완료됐습니다. "일부 건설사"로 변경됨.
-[오후 2:15] 팀장: 머니투데이 박지영 기자 취재 문의 왔는데 보도 안하기로 협의함.`;
+    document.getElementById('chatInput').value = `[오전 9:23] 팀장: 한국경제 김민수 기자 "포스코이앤씨 하자 분쟁" 기사 수정 요청해.\n[오전 10:30] 포사원: 수정 완료됐습니다.\n[오후 2:15] 팀장: 머니투데이 비보도 조치 협의 완료.`;
+}
+
+// 가상 커서 이동 및 클릭 연출 함수
+async function moveCursorAndAction(elementId, actionLabel) {
+    const cursor = document.getElementById('virtualCursor');
+    const target = document.getElementById(elementId);
+    const rect = target.getBoundingClientRect();
+    
+    cursor.style.display = 'block';
+    cursor.style.left = (rect.left + rect.width/2) + 'px';
+    cursor.style.top = (rect.top + rect.height/2) + 'px';
+
+    await new Promise(r => setTimeout(r, 1200)); // 이동 시간 대기
+    
+    cursor.classList.add('clicking');
+    if(actionLabel) showToast(actionLabel, 'success');
+    await new Promise(r => setTimeout(r, 400));
+    cursor.classList.remove('clicking');
 }
 
 async function analyze() {
     const text = document.getElementById('chatInput').value;
-    if(!text) return alert("내용을 입력하세요!");
-
+    if(!text) return;
+    
     const btn = document.getElementById('analyzeBtn');
     btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 분석 중...';
 
-    const res = await fetch('/analyze', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({text})
-    });
-    const data = await res.json();
-    currentItems = data.items;
+    // 백엔드 통신 (Gemini API 호출)
+    try {
+        const res = await fetch('/analyze', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({text})
+        });
+        const data = await res.json();
+        currentItems = data.items;
+        
+        renderResults(data);
+        
+        // --- [Step 2: 자동화 연출 시작] ---
+        await new Promise(r => setTimeout(r, 800));
+        
+        // 1. 결과 테이블의 첫 번째 행 확인 연출
+        const firstRow = document.querySelector('#resultBody tr');
+        if(firstRow) {
+            firstRow.id = 'tempRow';
+            await moveCursorAndAction('tempRow', '추출 데이터 검토 중...');
+            firstRow.classList.add('focus-row');
+        }
 
+        // 2. Teams 전송 버튼으로 커서 이동 후 자동 클릭
+        await new Promise(r => setTimeout(r, 1000));
+        await moveCursorAndAction('saveBtn', 'Teams DB로 전송을 시작합니다.');
+        
+        // 실제 전송 함수 실행
+        saveToTeams();
+        
+        // 커서 숨기기
+        setTimeout(() => { 
+            document.getElementById('virtualCursor').style.display = 'none';
+            if(firstRow) firstRow.classList.remove('focus-row');
+        }, 1000);
+
+    } catch(e) {
+        showToast('오류 발생: ' + e.message, 'error');
+    } finally {
+        btn.disabled = false; btn.innerHTML = 'AI 분석 시작';
+    }
+}
+
+function renderResults(data) {
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('resultArea').style.display = 'block';
+    document.getElementById('resultBadge').textContent = data.count + '건';
+    document.getElementById('resultBadge').style.display = 'block';
     
     document.getElementById('resultBody').innerHTML = data.items.map(item => `
         <tr>
-            <td>\${item.report_date}</td>
-            <td><strong>\${item.media}</strong><br>\${item.reporter}</td>
-            <td>\${item.title}</td>
-            <td><span class="tag \${item.action_type === '비보도조치' ? 'tag-red' : 'tag-blue'}">\${item.action_type}</span></td>
+            <td>${item.report_date}</td>
+            <td><strong>${item.media}</strong></td>
+            <td>${item.title}</td>
+            <td><span class="tag ${tagColors[item.action_type] || ''}">${item.action_type}</span></td>
         </tr>
     `).join('');
-
-    btn.disabled = false; btn.innerHTML = 'AI 분석 시작';
 }
 
-function saveToTeams() {
-    const btn = document.getElementById('saveBtn');
-    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 전송 중...';
+async function saveToTeams() {
+    const progress = document.getElementById('saveProgress');
+    const bar = document.getElementById('progressBar');
+    const step = document.getElementById('progressStep');
+    
+    progress.classList.add('active');
+    
+    const steps = [
+        {p: 30, t: 'Teams 보안 인증 중...'},
+        {p: 60, t: '이슈관리DB.xlsx 연결 완료'},
+        {p: 100, t: '데이터 동기화 중...'}
+    ];
 
+    for(const s of steps) {
+        await new Promise(r => setTimeout(r, 700));
+        bar.style.width = s.p + '%';
+        step.textContent = s.t;
+    }
+
+    appendRowsToMockup(currentItems);
+}
+
+function appendRowsToMockup(items) {
     const mockup = document.getElementById('teamsMockup');
-    mockup.classList.add('active');
     const excelBody = document.getElementById('excelBody');
-
-    currentItems.forEach((item, idx) => {
+    mockup.classList.add('active');
+    
+    items.forEach((item, idx) => {
         setTimeout(() => {
             const tr = document.createElement('tr');
             tr.className = 'excel-row-new';
+            tr.style.borderBottom = '1px solid #eee';
             tr.innerHTML = `
-                <td style="width:50px; color:#A1A1AA;">\${10 + idx}</td>
-                <td>\${item.report_date}</td>
-                <td>\${item.media}</td>
-                <td style="font-weight:600;">\${item.title}</td>
-                <td style="color:var(--teams-purple);">입력완료</td>
+                <td style="padding:8px; color:#999;">${20 + idx}</td>
+                <td>${item.report_date}</td>
+                <td>${item.media}</td>
+                <td style="font-weight:600;">${item.title}</td>
+                <td style="color:var(--teams-purple); font-weight:600;">저장완료</td>
             `;
             excelBody.appendChild(tr);
-            if(idx === currentItems.length - 1) {
-                btn.innerHTML = '전송 완료';
-            }
-        }, idx * 600);
+            tr.scrollIntoView({behavior: 'smooth', block: 'nearest'});
+        }, idx * 400);
     });
+}
+
+function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.className = 'toast ' + type;
+    t.style.display = 'block';
+    setTimeout(() => t.style.display='none', 3000);
 }
 </script>
 </body>
 </html>
-"""
-
-if __name__ == '__main__':
-    app.run(debug=True, port=5000)
