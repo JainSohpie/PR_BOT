@@ -1,233 +1,226 @@
+from flask import Flask, request, jsonify, render_template_string
+import google.generativeai as genai
+import json
+import re
+
+app = Flask(__name__)
+
+# ==========================================
+# 1. 제미나이 API 설정
+# ==========================================
+genai.configure(api_key="AIzaSyB9Ade86AvQJAUp6BK7y8ETFtkK2yFAoKc") # 발급받은 키를 여기에 입력하세요
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+# ==========================================
+# 2. 시스템 프롬프트 (데이터 추출 규칙)
+# ==========================================
+SYSTEM_PROMPT = """
+당신은 홍보팀의 유능한 AI 비서 '포사원'입니다. 
+사용자가 제공하는 카카오톡 대화 내용에서 '언론 보도 대응 및 이슈 조치' 사항을 찾아내어 JSON 배열 형태로 추출해야 합니다.
+
+[추출 규칙]
+1. report_date: 보도(예정)일 (MM/DD 형식)
+2. action_date: 조치 완료일 (MM/DD 형식)
+3. media: 언론사명
+4. reporter: 기자명
+5. title: 기사 제목
+6. issue: 이슈 요약 (한 문장)
+7. action_type: 다음 중 하나 선택 ['비보도조치', '제목 및 내용수정', '회사명삭제', '회사입장반영', '기타']
+8. action_detail: 구체적인 조치 내용
+
+[응답 포맷]
+반드시 다른 설명 없이 아래와 같은 순수 JSON 형식으로만 답변하세요:
+[
+  {"report_date": "...", "action_date": "...", "media": "...", "reporter": "...", "title": "...", "issue": "...", "action_type": "...", "action_detail": "..."}
+]
+"""
+
+# ==========================================
+# 3. 라우트 설정
+# ==========================================
+
+@app.route('/')
+def index():
+    # 아래에 제공할 HTML 코드를 렌더링합니다.
+    return render_template_string(HTML_TEMPLATE)
+
+@app.route('/analyze', methods=['POST'])
+def analyze():
+    data = request.json
+    chat_text = data.get('text', '')
+    
+    if not chat_text:
+        return jsonify({"error": "데이터가 없습니다."}), 400
+
+    try:
+        # 제미나이에게 분석 요청
+        prompt = f"{SYSTEM_PROMPT}\n\n[분석할 대화 내용]\n{chat_text}"
+        response = model.generate_content(prompt)
+        
+        # JSON 문자열만 추출 (마크다운 제거)
+        json_str = re.search(r'\[.*\]', response.text, re.DOTALL).group()
+        items = json.loads(json_str)
+        
+        return jsonify({
+            "items": items,
+            "count": len(items),
+            "non_coverage_count": len([i for i in items if i['action_type'] == '비보도조치'])
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# ==========================================
+# 4. 프론트엔드 HTML (애니메이션 강화 버전)
+# ==========================================
+HTML_TEMPLATE = """
 <!DOCTYPE html>
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>포사원 시뮬레이션</title>
+    <title>AI 에이전트 '포사원'</title>
     <link href="https://cdn.jsdelivr.net/npm/pretendard@latest/dist/web/variable/pretendardvariable-dynamic-subset.min.css" rel="stylesheet">
     <style>
         :root {
-            --kakao-yellow: #FEE500;
-            --kakao-bg: #BACEE0;
-            --my-bubble: #FEE500;
-            --other-bubble: #FFFFFF;
-            --text-main: #191919;
-            --text-sub: #707070;
-            --accent: #2563EB;
+            --bg: #FAFAF8; --card: #FFFFFF; --text: #18181B; --sub: #71717A;
+            --muted: #A1A1AA; --accent: #2563EB; --success: #059669;
+            --border: #E4E4E7; --teams-purple: #5059C9; --font: 'Pretendard Variable', sans-serif;
         }
-
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Pretendard Variable', sans-serif; }
-        body { background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; height: 100vh; }
-
-        /* 팝업 컨테이너 */
-        .popup-card {
-            width: 400px;
-            background: white;
-            border-radius: 20px;
-            overflow: hidden;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2);
-            animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-        }
-
-        @keyframes popIn {
-            from { transform: scale(0.8); opacity: 0; }
-            to { transform: scale(1); opacity: 1; }
-        }
-
-        /* 헤더 영역 */
-        .popup-header {
-            padding: 20px;
-            background: white;
-            border-bottom: 1px solid #eee;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .header-title { font-weight: 700; font-size: 16px; color: var(--text-main); }
-        .close-btn { cursor: pointer; border: none; background: none; font-size: 20px; color: #ccc; }
-
-        /* 카카오톡 채팅창 영역 */
-        .chat-container {
-            height: 450px;
-            background: var(--kakao-bg);
-            padding: 15px;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-
-        .date-divider {
-            text-align: center;
-            font-size: 11px;
-            color: white;
-            background: rgba(0,0,0,0.1);
-            padding: 4px 12px;
-            border-radius: 12px;
-            width: fit-content;
-            margin: 10px auto;
-        }
-
-        /* 말풍선 공통 */
-        .message { display: flex; gap: 8px; max-width: 85%; opacity: 0; transform: translateY(10px); }
-        .message.show { animation: slideUp 0.3s forwards; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: var(--font); background: var(--bg); color: var(--text); padding: 20px; }
+        .main { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1.5fr; gap: 20px; }
+        .panel { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
+        .header { margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
+        .logo { width: 32px; height: 32px; background: var(--accent); color: white; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: bold; }
         
-        @keyframes slideUp {
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .profile-img { width: 35px; height: 35px; border-radius: 14px; background: #ddd; flex-shrink: 0; }
-        .msg-content { display: flex; flex-direction: column; gap: 4px; }
-        .sender-name { font-size: 12px; color: var(--text-sub); }
-        .bubble { 
-            padding: 8px 12px; 
-            border-radius: 12px; 
-            font-size: 13px; 
-            line-height: 1.5; 
-            position: relative;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-
-        /* 상대방 메시지 */
-        .message.other { align-self: flex-start; }
-        .other .bubble { background: var(--other-bubble); border-top-left-radius: 2px; }
-
-        /* 내 메시지 */
-        .message.me { align-self: flex-end; flex-direction: row-reverse; }
-        .me .bubble { background: var(--my-bubble); border-top-right-radius: 2px; }
-        .me .sender-name { text-align: right; }
-
-        /* 하단 액션 영역 */
-        .popup-footer {
-            padding: 20px;
-            background: #f9fafb;
-            border-top: 1px solid #eee;
-        }
-
-        .action-info {
-            background: white;
-            border: 1px solid var(--accent);
-            border-radius: 10px;
-            padding: 12px;
-            margin-bottom: 15px;
-            display: none;
-        }
-        .action-info.active { display: block; animation: fadeIn 0.5s; }
-
-        .ai-badge {
-            background: var(--accent);
-            color: white;
-            font-size: 10px;
-            font-weight: 800;
-            padding: 2px 6px;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            display: inline-block;
-        }
-        .info-text { font-size: 12px; color: var(--text-main); font-weight: 600; }
-
-        .start-btn {
-            width: 100%;
-            padding: 14px;
-            background: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-weight: 700;
-            cursor: pointer;
-            transition: 0.2s;
-        }
-        .start-btn:hover { background: #1d4ed8; }
-        .start-btn:disabled { background: #93c5fd; cursor: not-allowed; }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        textarea { width: 100%; height: 300px; padding: 15px; border: 1px solid var(--border); border-radius: 8px; font-family: inherit; resize: none; background: #F9F9F9; margin-bottom: 10px; }
+        .btn { width: 100%; padding: 12px; border: none; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-teams { background: var(--teams-purple); color: white; margin-top: 15px; }
+        
+        .result-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 15px; }
+        .result-table th { text-align: left; padding: 10px; border-bottom: 1px solid var(--border); color: var(--sub); }
+        .result-table td { padding: 10px; border-bottom: 1px solid #F4F4F5; }
+        
+        .tag { padding: 2px 6px; border-radius: 4px; font-size: 11px; font-weight: 600; }
+        .tag-red { background: #FEE2E2; color: #991B1B; }
+        .tag-blue { background: #DBEAFE; color: #1E40AF; }
+        
+        /* 엑셀 애니메이션 효과 */
+        .teams-mockup { margin-top: 20px; border: 1px solid var(--border); border-radius: 10px; overflow: hidden; display: none; background: white; }
+        .teams-mockup.active { display: block; animation: slideUp 0.5s ease; }
+        .excel-row-new { animation: rowAppear 0.6s ease forwards; opacity: 0; background: #FFFBEB; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes rowAppear { to { opacity: 1; background: white; } }
+        
+        .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 8px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-<div class="popup-card">
-    <div class="popup-header">
-        <span class="header-title">업무 시뮬레이션: 홍보팀</span>
-        <button class="close-btn">&times;</button>
+<div class="header">
+    <div class="logo">홍</div>
+    <h2>AI 에이전트 '포사원' (Powered by Gemini)</h2>
+</div>
+
+<div class="main">
+    <div class="panel">
+        <h3 style="margin-bottom:10px">카톡 대화 입력</h3>
+        <textarea id="chatInput" placeholder="카톡 대화 내용을 붙여넣으세요..."></textarea>
+        <button class="btn btn-primary" onclick="analyze()" id="analyzeBtn">AI 분석 시작</button>
+        <button class="btn" style="margin-top:10px; background:#E4E4E7;" onclick="loadSample()">샘플 데이터 불러오기</button>
     </div>
 
-    <div class="chat-container" id="chatBox">
-        <div class="date-divider">2026년 4월 3일 목요일</div>
+    <div class="panel">
+        <h3>분석 결과</h3>
+        <div id="resultArea" style="display:none">
+            <table class="result-table">
+                <thead><tr><th>날짜</th><th>매체/기자</th><th>제목</th><th>유형</th></tr></thead>
+                <tbody id="resultBody"></tbody>
+            </table>
+            <button class="btn btn-teams" onclick="saveToTeams()" id="saveBtn">Teams 엑셀로 전송하기</button>
+            
+            <div id="teamsMockup" class="teams-mockup">
+                <div style="background:var(--teams-purple); color:white; padding:8px 15px; font-size:12px;">이슈관리DB.xlsx - Teams 실시간 동기화</div>
+                <table class="result-table" style="margin:0;">
+                    <tbody id="excelBody"></tbody>
+                </table>
+            </div>
         </div>
-
-    <div class="popup-footer">
-        <div id="aiAnalysis" class="action-info">
-            <span class="ai-badge">AI AGENT 분석 중</span>
-            <div class="info-text" id="aiStatus">실시간 이슈 감지 및 데이터베이스 분류 중...</div>
-        </div>
-        <button id="runBtn" class="start-btn" onclick="startSimulation()">시뮬레이션 시작</button>
+        <div id="emptyState" style="text-align:center; padding:100px 0; color:var(--muted);">분석 버튼을 눌러주세요.</div>
     </div>
 </div>
 
 <script>
-    const messages = [
-        { type: 'other', name: '팀장', text: '한국경제 김민수 기자 "포스코이앤씨 하자 분쟁 확산" 기사 나왔어. 제목에서 회사명 빼달라고 요청해' },
-        { type: 'me', name: '이자인 사원', text: '확인했습니다. 기자한테 연락드렸습니다' },
-        { type: 'me', name: '이자인 사원', text: '제목 수정 완료됐습니다. "포스코이앤씨" → "일부 건설사"로 변경' },
-        { type: 'other', name: '팀장', text: '머니투데이 박지영 기자한테서 빗물펌프장 안전사고 취재 문의 왔어' },
-        { type: 'me', name: '이자인 사원', text: '통화해서 상황 설명드렸고, 보도 안 하기로 했습니다. 비보도 조치 완료' }
-    ];
+let currentItems = [];
 
-    const aiSteps = [
-        "이슈 키워드 추출: #하자분쟁 #한국경제",
-        "조치 유형 분류: [제목 및 내용수정]",
-        "이슈 키워드 추출: #안전사고 #취재문의",
-        "조치 유형 분류: [비보도조치]",
-        "Teams DB 전송 준비 완료 ✅"
-    ];
+function loadSample() {
+    document.getElementById('chatInput').value = `--------------- 2026년 4월 3일 ---------------
+[오전 9:23] 팀장: 한국경제 김민수 기자 "포스코이앤씨 하자 분쟁" 기사 떴다. 제목 수정 요청해.
+[오전 10:30] 포사원: 수정 완료됐습니다. "일부 건설사"로 변경됨.
+[오후 2:15] 팀장: 머니투데이 박지영 기자 취재 문의 왔는데 보도 안하기로 협의함.`;
+}
 
-    async function startSimulation() {
-        const runBtn = document.getElementById('runBtn');
-        const chatBox = document.getElementById('chatBox');
-        const aiAnalysis = document.getElementById('aiAnalysis');
-        const aiStatus = document.getElementById('aiStatus');
+async function analyze() {
+    const text = document.getElementById('chatInput').value;
+    if(!text) return alert("내용을 입력하세요!");
 
-        runBtn.disabled = true;
-        runBtn.innerText = "분석 진행 중...";
-        aiAnalysis.classList.add('active');
+    const btn = document.getElementById('analyzeBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 분석 중...';
 
-        for (let i = 0; i < messages.length; i++) {
-            // 메시지 추가
-            const msg = messages[i];
-            const msgDiv = document.createElement('div');
-            msgDiv.className = `message ${msg.type}`;
-            
-            msgDiv.innerHTML = `
-                <div class="profile-img"></div>
-                <div class="msg-content">
-                    <span class="sender-name">${msg.name}</span>
-                    <div class="bubble">${msg.text}</div>
-                </div>
-            `;
-            
-            chatBox.appendChild(msgDiv);
-            
-            // 애니메이션 트리거
-            setTimeout(() => msgDiv.classList.add('show'), 50);
-            
-            // AI 분석 상태 업데이트 (중간중간)
-            if(i % 2 === 0) {
-                aiStatus.innerText = aiSteps[Math.floor(i/1.2)];
-            }
+    const res = await fetch('/analyze', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({text})
+    });
+    const data = await res.json();
+    currentItems = data.items;
 
-            chatBox.scrollTop = chatBox.scrollHeight;
-            await new Promise(r => setTimeout(r, 1200)); // 대화 간격
-        }
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('resultArea').style.display = 'block';
+    
+    document.getElementById('resultBody').innerHTML = data.items.map(item => `
+        <tr>
+            <td>\${item.report_date}</td>
+            <td><strong>\${item.media}</strong><br>\${item.reporter}</td>
+            <td>\${item.title}</td>
+            <td><span class="tag \${item.action_type === '비보도조치' ? 'tag-red' : 'tag-blue'}">\${item.action_type}</span></td>
+        </tr>
+    `).join('');
 
-        aiStatus.innerText = aiSteps[aiSteps.length - 1];
-        aiStatus.style.color = "#059669";
-        runBtn.innerText = "Teams에 저장됨";
-        
-        // 성공 토스트나 추가 액션
+    btn.disabled = false; btn.innerHTML = 'AI 분석 시작';
+}
+
+function saveToTeams() {
+    const btn = document.getElementById('saveBtn');
+    btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> 전송 중...';
+
+    const mockup = document.getElementById('teamsMockup');
+    mockup.classList.add('active');
+    const excelBody = document.getElementById('excelBody');
+
+    currentItems.forEach((item, idx) => {
         setTimeout(() => {
-            alert("홍사원이 카톡 대화를 분석하여 Teams 엑셀에 기록을 완료했습니다!");
-        }, 500);
-    }
+            const tr = document.createElement('tr');
+            tr.className = 'excel-row-new';
+            tr.innerHTML = `
+                <td style="width:50px; color:#A1A1AA;">\${10 + idx}</td>
+                <td>\${item.report_date}</td>
+                <td>\${item.media}</td>
+                <td style="font-weight:600;">\${item.title}</td>
+                <td style="color:var(--teams-purple);">입력완료</td>
+            `;
+            excelBody.appendChild(tr);
+            if(idx === currentItems.length - 1) {
+                btn.innerHTML = '전송 완료';
+            }
+        }, idx * 600);
+    });
+}
 </script>
-
 </body>
 </html>
+"""
+
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
